@@ -1,0 +1,119 @@
+<title>Fold Flyer</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,300;9..144,500&display=swap">
+<style>
+  :root { --bg: #050812; --ink: rgb(219,230,255); --ink-dim: rgba(219,230,255,0.55); --helix: rgb(255,179,71); --strand: rgb(127,212,193); --coil: rgb(150,158,190); --block: rgb(255,110,96); }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; color: var(--ink); }
+  #stage { position: fixed; inset: 0; background: var(--bg); }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hud { pointer-events: none; }
+  #intro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,8,18,0.72); cursor: pointer; font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
+  #intro .card { max-width: 34rem; max-height: 88vh; overflow-y: auto; box-sizing: border-box; padding: 2rem 2.25rem; border: 1px solid rgba(219,230,255,0.18); background: rgba(5,8,18,0.85); display: grid; gap: 1rem; }
+  #intro .short { display: none; }
+  #intro h1 { margin: 0; font: 300 clamp(2.4rem, 6vw, 3.6rem)/1 "Fraunces", Georgia, serif; letter-spacing: -0.01em; text-wrap: balance; }
+  #intro h1 em { font-style: normal; color: var(--helix); }
+  #intro p { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--ink); max-width: 62ch; }
+  #intro .legend { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.75rem; font-size: 0.78rem; color: var(--ink-dim); align-items: center; }
+  #intro .sw { width: 0.9rem; height: 0.9rem; display: inline-block; }
+  #intro .clustal { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; font-size: 0.72rem; color: var(--ink-dim); align-items: center; }
+  #intro .clustal .lbl { flex-basis: 100%; }
+  #intro .clustal i { display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.35rem; vertical-align: -1px; }
+  #intro .keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.3rem 1.25rem; font-size: 0.78rem; color: var(--ink-dim); }
+  #intro kbd { font: inherit; color: var(--ink); border: 1px solid rgba(219,230,255,0.3); padding: 0 0.35em; }
+  #intro .credits { font-size: 0.68rem; color: var(--ink-dim); line-height: 1.45; }
+  #intro .credits b { color: var(--ink); font-weight: 500; }
+  #intro .go { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--helix); }
+  #intro[hidden] { display: none; }
+  #touchbar { position: absolute; right: 10px; top: 46px; display: none; align-items: flex-end; gap: 8px; flex-direction: column; z-index: 5; }
+  #touchbar button { font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(219,230,255,0.25); padding: 8px 12px; border-radius: 4px; touch-action: manipulation; }
+  #touchbar button:active { background: rgba(255,179,71,0.35); }
+  #menubtn { width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; border-radius: 17px; }
+  #brakebtn { position: absolute; left: 14px; bottom: 18px; display: none; z-index: 5; font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(219,230,255,0.25); padding: 14px 18px; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #brakebtn.on { background: rgba(255,179,71,0.35); }
+  /* Boost mirrors brake on the opposite side. A second finger anywhere already boosted, but nothing on
+     screen said so, and a control you cannot see is a control most players never find. */
+  #boostbtn { position: absolute; right: 14px; bottom: 18px; display: none; z-index: 5; font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(127,212,193,0.35); padding: 14px 18px; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #boostbtn.on { background: rgba(127,212,193,0.4); }
+  @media (pointer: coarse) { body.playing #boostbtn { display: block; } }
+  @media (pointer: coarse) { body.playing #brakebtn { display: block; } }
+  /* Wrap, and never spill off the left edge: adding one more button pushed the row past the viewport
+     and the first item ended up at x = -72 on a 390px phone, unreachable. */
+  #menurow { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: calc(100vw - 24px); }
+  #menurow[hidden] { display: none; }
+  @media (pointer: coarse) { body.playing #touchbar { display: flex; } }
+  canvas, #stage { touch-action: none; }
+
+  @media (prefers-reduced-motion: no-preference) { #intro .go { animation: pulse 1.8s ease-in-out infinite; } @keyframes pulse { 50% { opacity: 0.45; } } }
+  @media (max-width: 640px), (max-height: 560px) {
+    #intro { align-items: flex-end; }
+    #intro .card { max-width: none; width: 100%; max-height: 80vh; padding: 1.1rem 1.1rem 1.4rem; gap: 0.7rem; border-width: 1px 0 0 0; }
+    #intro h1 { font-size: 2.1rem; }
+    #intro .long, #intro .legend, #intro .keys { display: none; }
+    #intro .short { display: block; }
+    #intro p { font-size: 0.8rem; }
+    #intro .clustal { font-size: 0.68rem; }
+  }
+</style>
+<div id="stage">
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
+<div id="touchbar">
+  <div id="menurow" hidden><button data-act="autopilot">autopilot</button><button data-act="sound">sound</button><button data-act="colours">colours</button><button data-act="lanes">touch / free</button><button data-act="restart">restart</button><button data-act="next">next fold</button></div>
+  <button id="menubtn" aria-label="menu">&#8943;</button>
+</div>
+<button id="brakebtn" aria-label="brake">brake</button>
+<button id="boostbtn" aria-label="boost">boost</button>
+<div id="intro" role="button" tabindex="0">
+  <div class="card">
+    <h1>Fold <em>Flyer</em></h1>
+    <p class="long">Fly a glider along a protein backbone from N- to C-terminus. Inside each α-helix you fly down the axis of the coil. Some helix side chains start out pointing inward, which a real helix never does; they pulse white until fixed. Fly into one and it snaps outward into its Clustal colour, fixing the fold. Pass it untouched and it stays broken. Over a β-sheet you drop into a trench run: the sheet becomes the floor, you weave left and right, and every side chain there is yours to collect. Turns are clear. Side chains are the real heavy atoms from the PDB entry, drawn as ball-and-stick. The tutorial bundle is synthetic, so it wears template side chains grafted from real structures.</p>
+    <p class="short">Fly a craft along a protein backbone, N to C. Inside each α-helix you fly down the coil. Fly into the pulsing side chains to knock them into place; dodge the β-sheet side chains. Touch and drag: the craft follows your finger from where it landed, and snaps back to the centre when you let go. A quick flick lunges toward a side chain. Hold the boost button, bottom right, to run faster; let go and you settle back to cruise. A second finger anywhere does the same. A hard sideways flick does a barrel roll, and walls only graze you while you are over. Ride the edge of the corridor and the slipstream builds speed — that is also where the cofactors are. A ghost of your best run flies alongside you.</p>
+    <div class="legend">
+      <span class="sw" style="background:var(--helix)"></span><span>α-helix ribbon · 2.0 Å corridor inside the coil</span>
+      <span class="sw" style="background:var(--strand)"></span><span>β-sheet · a trench run: the sheet is the floor, bends throw you at the wall</span>
+      <span class="sw" style="background:linear-gradient(90deg,#80A0F0,#fff)"></span><span>inward side chain, pulsing white · fly into it to knock it into place · dead centre scores double</span>
+      <span class="sw" style="background:#ff5748"></span><span>cofactor — the heme, NADH or metal the fold is built around · it glows from inside the protein · fly the ring of pips beside it to claim it</span>
+    </div>
+    <div class="clustal">
+      <span class="lbl">side chains in Clustal X colours</span>
+      <span><i style="background:#80A0F0"></i>AILMFWV</span><span><i style="background:#F01505"></i>KR</span><span><i style="background:#C048C0"></i>DE</span><span><i style="background:#15C015"></i>NQST</span>
+      <span><i style="background:#F08080"></i>C</span><span><i style="background:#F09048"></i>G</span><span><i style="background:#C0C000"></i>P</span><span><i style="background:#15A4A4"></i>HY</span>
+    </div>
+    <div class="keys">
+      <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Shift</kbd> or <kbd>Space</kbd> boost · <kbd>Ctrl</kbd> brake</span>
+      <span><kbd>A</kbd> autopilot · <kbd>C</kbd> colour scheme</span><span><kbd>N</kbd> next fold · <kbd>R</kbd> restart · <kbd>M</kbd> sound</span>
+      <span>drop a .pdb or .cif anywhere · <kbd>L</kbd> lane mode</span><span>10 folds, 86 to 547 residues · a run flies on from fold to fold</span>
+      <span>repair a whole helix for a bonus</span><span>chain flips for combo · a miss or a sheet hit breaks it</span>
+      <span>double-tap <kbd>←</kbd> or <kbd>→</kbd> to barrel roll</span><span>a roll shrugs off a wall while you are over</span>
+      <span>ride the edge of the corridor for slipstream speed</span><span>a dead-centre hit surges you forward · <kbd>Ctrl</kbd> brake turns harder</span>
+      <span>a ghost of your best run flies alongside you</span><span>cofactors sit out at the wall — the risky line is the scoring one</span>
+    </div>
+    <p class="credits">Structures from the <b>RCSB Protein Data Bank</b>, credited to their authors on each fold. Secondary structure by P-SEA (Labesse et al. 1997). Side-chain colours after Clustal X (Thompson et al. 1997). Craft and ribbon renderer from Fold Racer.</p>
+    <div class="go">tap, click or press any key to fly</div>
+  </div>
+</div>
+</div>
+<script>
+/*__GAME__*/
+(function () {
+  var intro = document.getElementById('intro');
+  function start() { intro.hidden = true; document.body.classList.add('playing'); window.focus(); if (window.flyerAction) window.flyerAction('start'); }
+  intro.addEventListener('click', start);
+  intro.addEventListener('touchend', function (e) { e.preventDefault(); start(); }, { passive: false });
+  window.addEventListener('keydown', function () { if (!intro.hidden) start(); }, true);
+  document.getElementById('stage').addEventListener('click', function () { window.focus(); });
+  var brake = document.getElementById('brakebtn');
+  function brakeOn(e) { e.preventDefault(); e.stopPropagation(); brake.classList.add('on'); window.flyerAction('brakeOn'); }
+  function brakeOff(e) { if (e) { e.preventDefault(); e.stopPropagation(); } brake.classList.remove('on'); window.flyerAction('brakeOff'); }
+  brake.addEventListener('pointerdown', brakeOn); brake.addEventListener('pointerup', brakeOff); brake.addEventListener('pointercancel', brakeOff); brake.addEventListener('pointerleave', brakeOff);
+  var boost = document.getElementById('boostbtn');
+  function boostOn(e) { e.preventDefault(); e.stopPropagation(); boost.classList.add('on'); window.flyerAction('boostOn'); }
+  function boostOff(e) { if (e) { e.preventDefault(); e.stopPropagation(); } boost.classList.remove('on'); window.flyerAction('boostOff'); }
+  boost.addEventListener('pointerdown', boostOn); boost.addEventListener('pointerup', boostOff); boost.addEventListener('pointercancel', boostOff); boost.addEventListener('pointerleave', boostOff);
+  var menurow = document.getElementById('menurow');
+  document.getElementById('menubtn').addEventListener('click', function (e) { e.stopPropagation(); menurow.hidden = !menurow.hidden; });
+  document.querySelectorAll('#menurow button').forEach(function (b) {
+    b.addEventListener('click', function (e) { e.stopPropagation(); window.flyerAction(b.dataset.act); menurow.hidden = true; b.blur(); });
+  });
+  intro.focus();
+})();
+</script>
