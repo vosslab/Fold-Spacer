@@ -1213,3 +1213,61 @@ zone where the corridor opens out to the real surface.
 **A gap in the harness worth naming:** the oracle, the autopilot and `CASUAL` all steer through their own
 branches, and `phone_test` drives touch. **Nothing in the six gates exercises the keyboard path at all**,
 so this change is covered only by the ad-hoc runs above. Worth a permanent check.
+
+## A quieter visual design (2026-09-14)
+
+The owner asked for a considered, restrained visual treatment and approved a combined pass
+over the ribbon, lighting, craft and interface. The opening now presents the ribbon as a
+slowly moving sculpture with a short invitation and an explicit Begin flight button. The
+manual, Clustal key and scientific credits are available in a native help dialog before and
+during play. Opening it pauses the run and releases held controls; closing or Escape resumes
+it. The desktop menu is now visible too. System fonts remove the Google Fonts dependency.
+Small-phone and landscape layouts are checked separately. The old phone introduction's
+instruction to dodge sheet side chains was incorrect; the help now says to collect them.
+
+The HUD groups score and combo, with quieter fold metadata, a single turn chevron and one
+stable reward message. The persistent desktop manual and legend moved into help. The craft
+has a pearl-grey hull and dark canopy, with illumination concentrated at the engines. Its
+geometry, footprint and collision shape are unchanged.
+
+**The lighting diagnosis in the old handover was wrong.** `begin()` already transformed the
+main light from world into view space. The added term is a camera fill, preserving visibility
+inside helices, with a broader, weaker specular highlight. A restrained AO approximation is
+baked into ribbon colours using directional Cα density within 9 Å and interpolated along the
+backbone. Both the collection glow and its base preserve that shading, and restart restores
+all base colours. Geometry carries its own ring/subdivision layout so glow writes stay aligned.
+
+**The first tessellation increase was too expensive on phones.** A 12-point profile and
+eight samples per residue nearly doubled ribbon triangles. Software-renderer medians at
+390×760, with an actual pixel readback after each frozen draw, were:
+
+| Fold | Before | First candidate | Final phone geometry |
+|---|---:|---:|---:|
+| Bundle | 11.8 ms | 20.8 ms | 12.3 ms |
+| 1LDG | 27.2 ms | 40.0 ms | 28.4 ms |
+| 1M56 | 50.4 ms | 71.3 ms | 54.0 ms |
+
+Phones and narrow windows therefore retain five longitudinal samples and use the rounder
+12-point cross-section: 20% more ribbon triangles, roughly 4–7% more measured render time.
+Larger desktop views use eight samples. A prospective 16-bit overflow from the finer mesh
+selects the old 10 × 5 layout for larger imports. These are SwiftShader measurements on a
+shared machine, not physical-phone frame rates. `gl.finish()` alone misleadingly measured
+mostly command submission; `readPixels()` is what waits for the rendered result here.
+
+**Additive blending was ignoring alpha.** `ONE, ONE` meant the cofactor x-ray and ghost
+draws ignored their supplied distance fade. `SRC_ALPHA, ONE` fixes that; effects with fade
+already in vertex colour retain alpha 1. Cofactor x-ray strength is now 0.22, and its cyan
+shape is legible instead of clipping to a white silhouette. Near ribbon fades, side-chain
+hard cuts and strand-only back-face culling are unchanged.
+
+`tools/visual_test.js` exercises help, pause/resume, keyboard activation, focused-menu Escape,
+six actual flight viewpoints, small-phone/landscape layouts, and the largest campaign fold
+without the index extension. Captures explicitly step beyond the preview: its rounded status
+can say zero a frame before the old residue is refreshed. The phone harness now opens the
+help to check the mechanics and taps the real Begin button.
+
+The autopilot and oracle sweeps, fairness, standalone phone input, no-WebGL fallback and
+the whole-campaign chain passed. The chain restores 214/215 side chains, 614,800 points,
+with ranks A/B/S over 6.6 minutes. No flight physics or flight-camera constants changed.
+The artifact-wrapper phone run also passed all touch, menu, ghost, import and completion
+checks. The rebuilt standalone and `docs/index.html` are byte-identical.

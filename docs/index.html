@@ -7,99 +7,119 @@
 <title>Fold Flyer</title>
 </head>
 <body>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Fraunces:opsz,wght@9..144,300;9..144,500&display=swap">
 <style>
-  :root { --bg: #050812; --ink: rgb(219,230,255); --ink-dim: rgba(219,230,255,0.55); --helix: rgb(255,179,71); --strand: rgb(127,212,193); --coil: rgb(150,158,190); --block: rgb(255,110,96); }
+  :root { color-scheme: dark; --bg: #050812; --ink: #e7edf2; --dim: #9aa7b8; --line: rgba(219,230,255,.16); --helix: #ebba76; --strand: #8ec7b6; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; color: var(--ink); }
-  #stage { position: fixed; inset: 0; background: var(--bg); }
-  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  button, summary, a { -webkit-tap-highlight-color: transparent; }
+  button { font: inherit; cursor: pointer; color: inherit; }
+  button:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid var(--helix); outline-offset: 5px; }
+  [hidden] { display: none !important; }
+  #stage { position: fixed; inset: 0; background: var(--bg); touch-action: none; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
   #hud { pointer-events: none; }
-  #intro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5,8,18,0.72); cursor: pointer; font-family: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace; }
-  #intro .card { max-width: 34rem; max-height: 88vh; overflow-y: auto; box-sizing: border-box; padding: 2rem 2.25rem; border: 1px solid rgba(219,230,255,0.18); background: rgba(5,8,18,0.85); display: grid; gap: 1rem; }
-  #intro .short { display: none; }
-  #intro h1 { margin: 0; font: 300 clamp(2.4rem, 6vw, 3.6rem)/1 "Fraunces", Georgia, serif; letter-spacing: -0.01em; text-wrap: balance; }
-  #intro h1 em { font-style: normal; color: var(--helix); }
-  #intro p { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--ink); max-width: 62ch; }
-  #intro .legend { display: grid; grid-template-columns: auto 1fr; gap: 0.35rem 0.75rem; font-size: 0.78rem; color: var(--ink-dim); align-items: center; }
-  #intro .sw { width: 0.9rem; height: 0.9rem; display: inline-block; }
-  #intro .clustal { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; font-size: 0.72rem; color: var(--ink-dim); align-items: center; }
-  #intro .clustal .lbl { flex-basis: 100%; }
-  #intro .clustal i { display: inline-block; width: 0.6rem; height: 0.6rem; margin-right: 0.35rem; vertical-align: -1px; }
-  #intro .keys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.3rem 1.25rem; font-size: 0.78rem; color: var(--ink-dim); }
-  #intro kbd { font: inherit; color: var(--ink); border: 1px solid rgba(219,230,255,0.3); padding: 0 0.35em; }
-  #intro .credits { font-size: 0.68rem; color: var(--ink-dim); line-height: 1.45; }
-  #intro .credits b { color: var(--ink); font-weight: 500; }
-  #intro .go { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--helix); }
-  #intro[hidden] { display: none; }
-  #touchbar { position: absolute; right: 10px; top: 46px; display: none; align-items: flex-end; gap: 8px; flex-direction: column; z-index: 5; }
-  #touchbar button { font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(219,230,255,0.25); padding: 8px 12px; border-radius: 4px; touch-action: manipulation; }
-  #touchbar button:active { background: rgba(255,179,71,0.35); }
-  #menubtn { width: 34px; height: 34px; padding: 0; font-size: 18px; line-height: 1; border-radius: 17px; }
-  #brakebtn { position: absolute; left: 14px; bottom: 18px; display: none; z-index: 5; font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(219,230,255,0.25); padding: 14px 18px; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; }
-  #brakebtn.on { background: rgba(255,179,71,0.35); }
-  /* Boost mirrors brake on the opposite side. A second finger anywhere already boosted, but nothing on
-     screen said so, and a control you cannot see is a control most players never find. */
-  #boostbtn { position: absolute; right: 14px; bottom: 18px; display: none; z-index: 5; font: 12px ui-monospace, Menlo, monospace; color: rgba(219,230,255,0.85); background: rgba(5,8,18,0.6); border: 1px solid rgba(127,212,193,0.35); padding: 14px 18px; border-radius: 30px; touch-action: none; user-select: none; -webkit-user-select: none; }
-  #boostbtn.on { background: rgba(127,212,193,0.4); }
-  @media (pointer: coarse) { body.playing #boostbtn { display: block; } }
-  @media (pointer: coarse) { body.playing #brakebtn { display: block; } }
-  /* Wrap, and never spill off the left edge: adding one more button pushed the row past the viewport
-     and the first item ended up at x = -72 on a 390px phone, unreachable. */
-  #menurow { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: calc(100vw - 24px); }
-  #menurow[hidden] { display: none; }
-  @media (pointer: coarse) { body.playing #touchbar { display: flex; } }
-  canvas, #stage { touch-action: none; }
-
-  @media (prefers-reduced-motion: no-preference) { #intro .go { animation: pulse 1.8s ease-in-out infinite; } @keyframes pulse { 50% { opacity: 0.45; } } }
-  @media (max-width: 640px), (max-height: 560px) {
-    #intro { align-items: flex-end; }
-    #intro .card { max-width: none; width: 100%; max-height: 80vh; padding: 1.1rem 1.1rem 1.4rem; gap: 0.7rem; border-width: 1px 0 0 0; }
-    #intro h1 { font-size: 2.1rem; }
-    #intro .long, #intro .legend, #intro .keys { display: none; }
-    #intro .short { display: block; }
-    #intro p { font-size: 0.8rem; }
-    #intro .clustal { font-size: 0.68rem; }
+  #intro { position: absolute; inset: 0; display: flex; align-items: center; justify-content: flex-end; padding: 7vw; background: linear-gradient(90deg, transparent 28%, rgba(5,8,18,.3) 57%, rgba(5,8,18,.88)); }
+  .wordmark { position: absolute; left: 32px; top: 28px; font-size: 15px; font-weight: 500; letter-spacing: -.02em; }
+  .edition { position: absolute; right: 32px; top: 30px; font-size: 11px; color: var(--dim); letter-spacing: .04em; }
+  #intro .card { width: 370px; max-width: 44%; }
+  #intro .eyebrow { margin: 0 0 22px; color: var(--helix); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
+  #intro h1 { margin: 0; font-size: clamp(44px, 5vw, 72px); font-weight: 400; line-height: 1.06; letter-spacing: -.055em; }
+  #intro .description { margin: 24px 0 30px; max-width: 280px; color: #b4c0ce; font-size: 17px; line-height: 1.6; }
+  #beginbtn { min-height: 50px; min-width: 176px; padding: 14px 24px; border: 0; border-radius: 28px; color: #19202a; background: var(--ink); font-size: 14px; font-weight: 600; }
+  #beginbtn:hover { background: white; }
+  #intro .secondary { display: block; margin: 14px 0 0; padding: 12px 0; min-height: 44px; border: 0; background: none; color: #b4c0ce; font-size: 13px; }
+  .intro-foot { position: absolute; bottom: 28px; left: 32px; right: 32px; display: flex; justify-content: space-between; gap: 16px; color: var(--dim); font-size: 11px; }
+  .intro-foot span:last-child { text-align: right; }
+  #touchbar { position: absolute; right: max(18px, env(safe-area-inset-right)); top: max(86px, env(safe-area-inset-top)); display: none; align-items: flex-end; gap: 8px; flex-direction: column; z-index: 5; }
+  body.playing #touchbar { display: flex; }
+  #touchbar button { min-height: 44px; border: 1px solid var(--line); background: rgba(12,18,29,.92); padding: 10px 15px; border-radius: 22px; font-size: 12px; touch-action: manipulation; }
+  #touchbar button:active { background: #303c48; }
+  #menubtn { width: 44px; padding: 0 !important; font-size: 21px !important; line-height: 1; order: -1; }
+  #menurow { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: min(320px, calc(100vw - 36px)); }
+  #brakebtn, #boostbtn { position: absolute; bottom: max(20px, env(safe-area-inset-bottom)); display: none; z-index: 5; min-height: 50px; min-width: 90px; padding: 14px 22px; border-radius: 28px; font-size: 13px; font-weight: 500; background: rgba(12,18,29,.82); border: 1px solid rgba(219,230,255,.25); touch-action: none; user-select: none; -webkit-user-select: none; }
+  #brakebtn { left: max(18px, env(safe-area-inset-left)); }
+  #boostbtn { right: max(18px, env(safe-area-inset-right)); border-color: rgba(142,199,182,.5); color: #b9e3d5; }
+  #brakebtn.on { background: #39424c; } #boostbtn.on { background: #34594f; }
+  @media (pointer: coarse) { body.playing #brakebtn, body.playing #boostbtn { display: block; } }
+  #help { width: min(540px, calc(100vw - 28px)); max-height: min(82vh, 720px); margin: auto; padding: 30px; border: 1px solid var(--line); border-radius: 22px; background: #0d1420; color: var(--ink); overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+  #help::backdrop { background: rgba(5,8,18,.8); }
+  #help header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+  #help h2 { font-size: 24px; font-weight: 500; letter-spacing: -.04em; margin: 0; }
+  #helpclose { min-width: 44px; min-height: 44px; padding: 8px; border: 1px solid var(--line); border-radius: 50%; background: none; font-size: 23px; }
+  #help p { font-size: 14px; line-height: 1.65; color: #b4c0ce; margin: 0 0 20px; }
+  #help dl { display: grid; grid-template-columns: 85px 1fr; gap: 14px 20px; margin: 24px 0; font-size: 13px; line-height: 1.6; }
+  #help dt { color: var(--ink); } #help dd { margin: 0; color: #b4c0ce; }
+  #help .phone { display: none; }
+  #help details { border-top: 1px solid var(--line); padding: 16px 0 0; margin-top: 18px; }
+  #help summary { cursor: pointer; padding: 4px 0 14px; color: var(--ink); font-size: 14px; }
+  #help .legend { display: grid; grid-template-columns: 14px 1fr; align-items: center; gap: 10px; font-size: 13px; margin: 12px 0 22px; color: #b4c0ce; }
+  .sw { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .clustal { display: flex; flex-wrap: wrap; gap: 12px 18px; font: 11px ui-monospace, monospace; margin-bottom: 20px; }
+  .clustal i { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  #help .credits { font-size: 12px; } #help a { color: var(--ink); text-underline-offset: 3px; }
+  @media (pointer: coarse) { #help .phone { display: inline; } #help .desktop { display: none; } }
+  @media (max-width: 640px) {
+    #intro { align-items: flex-end; justify-content: flex-start; padding: 0 30px 88px; background: linear-gradient(0deg, #050812 5%, rgba(5,8,18,.96) 24%, rgba(5,8,18,.45) 45%, transparent 64%); }
+    .wordmark { top: 26px; left: 26px; } .edition { top: 28px; right: 26px; }
+    #intro .card { width: 100%; max-width: none; }
+    #intro .eyebrow { margin-bottom: 15px; font-size: 10px; }
+    #intro h1 { font-size: clamp(40px, 11vw, 54px); }
+    #intro .description { font-size: 15px; line-height: 1.55; margin: 18px 0 24px; max-width: 260px; }
+    #beginbtn { width: 100%; } #intro .secondary { margin: 9px auto 0; padding: 10px 16px; }
+    .intro-foot { left: 30px; right: 30px; bottom: 23px; font-size: 10px; } .intro-foot span:last-child { max-width: 135px; }
+    #help { padding: 22px; }
+  }
+  @media (max-height: 600px) {
+    #intro { padding-top: 70px; padding-bottom: 50px; overflow-y: auto; }
+    #intro .eyebrow { display: none; } #intro h1 { font-size: 36px; }
+    #intro .description { margin: 12px 0 16px; font-size: 14px; }
+    .intro-foot { display: none; } #intro .card { margin: auto 0; }
+  }
+  @media (max-width: 640px) and (max-height: 600px) {
+    #intro { padding: 0 26px 32px; }
+    #intro .card { margin: 0; }
   }
 </style>
 <div id="stage">
-<canvas id="gl"></canvas>
-<canvas id="hud"></canvas>
-<div id="touchbar">
-  <div id="menurow" hidden><button data-act="autopilot">autopilot</button><button data-act="sound">sound</button><button data-act="colours">colours</button><button data-act="lanes">touch / free</button><button data-act="restart">restart</button><button data-act="next">next fold</button></div>
-  <button id="menubtn" aria-label="menu">&#8943;</button>
-</div>
-<button id="brakebtn" aria-label="brake">brake</button>
-<button id="boostbtn" aria-label="boost">boost</button>
-<div id="intro" role="button" tabindex="0">
-  <div class="card">
-    <h1>Fold <em>Flyer</em></h1>
-    <p class="long">Fly a glider along a protein backbone from N- to C-terminus. Inside each α-helix you fly down the axis of the coil. Some helix side chains start out pointing inward, which a real helix never does; they pulse white until fixed. Fly into one and it snaps outward into its Clustal colour, fixing the fold. Pass it untouched and it stays broken. Over a β-sheet you drop into a trench run: the sheet becomes the floor, you weave left and right, and every side chain there is yours to collect. Turns are clear. Side chains are the real heavy atoms from the PDB entry, drawn as ball-and-stick. The tutorial bundle is synthetic, so it wears template side chains grafted from real structures.</p>
-    <p class="short">Fly a craft along a protein backbone, N to C. Inside each α-helix you fly down the coil. Fly into the pulsing side chains to knock them into place; dodge the β-sheet side chains. Touch and drag: the craft follows your finger from where it landed, and snaps back to the centre when you let go. A quick flick lunges toward a side chain. Hold the boost button, bottom right, to run faster; let go and you settle back to cruise. A second finger anywhere does the same. A hard sideways flick does a barrel roll, and walls only graze you while you are over. Ride the edge of the corridor and the slipstream builds speed — that is also where the cofactors are. A ghost of your best run flies alongside you.</p>
-    <div class="legend">
-      <span class="sw" style="background:var(--helix)"></span><span>α-helix ribbon · 2.0 Å corridor inside the coil</span>
-      <span class="sw" style="background:var(--strand)"></span><span>β-sheet · a trench run: the sheet is the floor, bends throw you at the wall</span>
-      <span class="sw" style="background:linear-gradient(90deg,#80A0F0,#fff)"></span><span>inward side chain, pulsing white · fly into it to knock it into place · dead centre scores double</span>
-      <span class="sw" style="background:#ff5748"></span><span>cofactor — the heme, NADH or metal the fold is built around · it glows from inside the protein · fly the ring of pips beside it to claim it</span>
+  <canvas id="gl"></canvas><canvas id="hud"></canvas>
+  <div id="touchbar">
+    <button id="menubtn" aria-label="Menu" aria-expanded="false" aria-controls="menurow">&#8943;</button>
+    <div id="menurow" hidden>
+      <button id="helpbtn">How to fly</button><button data-act="autopilot">Autopilot</button><button data-act="sound">Sound</button><button data-act="colours">Colours</button><button data-act="lanes">Touch / free</button><button data-act="restart">Restart</button><button data-act="next">Next fold</button>
     </div>
-    <div class="clustal">
-      <span class="lbl">side chains in Clustal X colours</span>
-      <span><i style="background:#80A0F0"></i>AILMFWV</span><span><i style="background:#F01505"></i>KR</span><span><i style="background:#C048C0"></i>DE</span><span><i style="background:#15C015"></i>NQST</span>
-      <span><i style="background:#F08080"></i>C</span><span><i style="background:#F09048"></i>G</span><span><i style="background:#C0C000"></i>P</span><span><i style="background:#15A4A4"></i>HY</span>
-    </div>
-    <div class="keys">
-      <span><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Shift</kbd> or <kbd>Space</kbd> boost · <kbd>Ctrl</kbd> brake</span>
-      <span><kbd>A</kbd> autopilot · <kbd>C</kbd> colour scheme</span><span><kbd>N</kbd> next fold · <kbd>R</kbd> restart · <kbd>M</kbd> sound</span>
-      <span>drop a .pdb or .cif anywhere · <kbd>L</kbd> lane mode</span><span>10 folds, 86 to 547 residues · a run flies on from fold to fold</span>
-      <span>repair a whole helix for a bonus</span><span>chain flips for combo · a miss or a sheet hit breaks it</span>
-      <span>double-tap <kbd>←</kbd> or <kbd>→</kbd> to barrel roll</span><span>a roll shrugs off a wall while you are over</span>
-      <span>ride the edge of the corridor for slipstream speed</span><span>a dead-centre hit surges you forward · <kbd>Ctrl</kbd> brake turns harder</span>
-      <span>a ghost of your best run flies alongside you</span><span>cofactors sit out at the wall — the risky line is the scoring one</span>
-    </div>
-    <p class="credits">Structures from the <b>RCSB Protein Data Bank</b>, credited to their authors on each fold. Secondary structure by P-SEA (Labesse et al. 1997). Side-chain colours after Clustal X (Thompson et al. 1997). Craft and ribbon renderer from Fold Racer.</p>
-    <div class="go">tap, click or press any key to fly</div>
   </div>
+  <button id="brakebtn" aria-label="brake">Brake</button><button id="boostbtn" aria-label="boost">Boost</button>
+  <section id="intro" aria-label="Welcome to Fold Flyer">
+    <div class="wordmark">Fold Flyer</div><div class="edition">A molecular flight</div>
+    <div class="card">
+      <p class="eyebrow">From nature. Into flight.</p>
+      <h1>A world<br>within.</h1>
+      <p class="description">Fly through a protein.<br>Restore its shape, one side chain at a time.</p>
+      <button id="beginbtn">Begin flight <span aria-hidden="true">&nbsp;↗</span></button>
+      <button id="learnbtn" class="secondary">How to fly &amp; the science</button>
+    </div>
+    <div class="intro-foot"><span>10 folds. N to C.</span><span>Inspired by structures from the Protein Data Bank.</span></div>
+  </section>
 </div>
-</div>
+<dialog id="help" aria-labelledby="helptitle">
+  <header><h2 id="helptitle">How to fly</h2><button id="helpclose" aria-label="Close help">×</button></header>
+  <p>Follow the protein from N- to C-terminus. Fly into pulsing side chains to restore them. A dead-centre hit scores double; a sequence of hits builds your combo.</p>
+  <dl>
+    <dt>Steer</dt><dd><span class="desktop">Arrow keys. Tap to nudge, hold to move further.</span><span class="phone">Touch and drag anywhere. Release to return to the centre; a quick flick lunges toward a side chain.</span></dd>
+    <dt>Boost</dt><dd><span class="desktop">Hold Shift or Space.</span><span class="phone">Hold Boost at the bottom right, or use a second finger.</span></dd>
+    <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down and turn harder.</span><span class="phone">Hold Brake at the bottom left to slow down and turn harder.</span></dd>
+    <dt>Barrel roll</dt><dd><span class="desktop">Double-tap the left or right arrow.</span><span class="phone">Make a hard sideways flick.</span> Walls only graze you while you are over.</dd>
+  </dl>
+  <p>Ride the edge of the corridor to build slipstream speed. Cofactors sit out by the wall: fly through the ring of pips beside one to claim it. A ghost of your best run flies alongside you.</p>
+  <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · A autopilot · C colours · L lane mode · R restart · N next fold.</span></p>
+  <details><summary>The molecule &amp; its colours</summary>
+    <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>α-helix — fly inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>β-sheet — weave over the surface, collecting side chains</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
+    <p>Side chains use Clustal X colours. Their ball-and-stick shapes come from real heavy-atom coordinates. Drop your own .pdb or .cif file onto the game to fly its structure.</p>
+    <div class="clustal"><span><i style="background:#80A0F0"></i>AILMFWV</span><span><i style="background:#F01505"></i>KR</span><span><i style="background:#C048C0"></i>DE</span><span><i style="background:#15C015"></i>NQST</span><span><i style="background:#F08080"></i>C</span><span><i style="background:#F09048"></i>G</span><span><i style="background:#C0C000"></i>P</span><span><i style="background:#15A4A4"></i>HY</span></div>
+    <p>This is a playful interpretation of a folded protein. Inward side chains are deliberately displaced for you to repair. The tutorial bundle is synthetic and uses side-chain templates from real structures.</p>
+    <p class="credits">Structures from the <a href="https://www.rcsb.org/" target="_blank" rel="noopener noreferrer">RCSB Protein Data Bank</a>, with authors credited on each fold. Secondary structure by P-SEA (Labesse et al., 1997). Side-chain colours after Clustal X (Thompson et al., 1997). Craft and ribbon renderer from Fold Racer.</p>
+  </details>
+</dialog>
 <script>
 // Fold Flyer — structure parser (PDB + mmCIF, Cα only, first model).
 // Works in the browser (global `parseStructure`) and in node (module.exports).
@@ -837,8 +857,41 @@
   'use strict';
   const SC = 7;
   const V = root.V || require('./rail.js').V;
-  const COL = { H: [255 / 255, 179 / 255, 71 / 255], E: [127 / 255, 212 / 255, 193 / 255], C: [150 / 255, 158 / 255, 190 / 255] };
-  const RING = 10, SUB = 5;
+  const COL = { H: [0.92, 0.70, 0.38], E: [0.48, 0.76, 0.69], C: [0.56, 0.61, 0.70] };
+
+  // A bounded, two-sided approximation to occlusion, baked once per structure. Nearby Cα atoms
+  // contribute a directional density tensor; excluding sequence neighbours avoids shading the
+  // backbone by its own sampling density. The squared normal term also works inside a helix.
+  function occlusionField(ca) {
+    const radius = 9, cells = new Map(), field = [], n = ca.length / 3;
+    const key = (x, y, z) => x + ',' + y + ',' + z;
+    for (let i = 0; i < n; i++) {
+      const k = key(Math.floor(ca[i * 3] / radius), Math.floor(ca[i * 3 + 1] / radius), Math.floor(ca[i * 3 + 2] / radius));
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k).push(i);
+    }
+    for (let i = 0; i < n; i++) {
+      const x = ca[i * 3], y = ca[i * 3 + 1], z = ca[i * 3 + 2];
+      const cx = Math.floor(x / radius), cy = Math.floor(y / radius), cz = Math.floor(z / radius);
+      const q = [0, 0, 0, 0, 0, 0, 0];
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+        const bucket = cells.get(key(cx + a, cy + b, cz + c));
+        if (!bucket) continue;
+        for (const j of bucket) {
+          if (Math.abs(i - j) <= 3) continue;
+          const dx = ca[j * 3] - x, dy = ca[j * 3 + 1] - y, dz = ca[j * 3 + 2] - z;
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 < 0.01 || d2 >= radius * radius) continue;
+          const w = Math.pow(1 - d2 / (radius * radius), 2), s = w / d2;
+          q[0] += w;
+          q[1] += dx * dx * s; q[2] += dy * dy * s; q[3] += dz * dz * s;
+          q[4] += dx * dy * s; q[5] += dx * dz * s; q[6] += dy * dz * s;
+        }
+      }
+      field.push(q);
+    }
+    return field;
+  }
 
   function catmull(p0, p1, p2, p3, t) {
     const t2 = t * t, t3 = t2 * t, out = [0, 0, 0];
@@ -856,8 +909,14 @@
     return [0.6, 0.6];
   }
 
-  function buildRibbon(ca, ss, axis) {
+  function buildRibbon(ca, ss, axis, detail) {
     const n = ca.length / 3;
+    const requestedSub = detail && detail.subdivisions || 8;
+    // Keep larger imports on the previous geometry budget. The finer campaign mesh must not turn
+    // a previously valid 16-bit mesh into an overflowing one on devices without the index extension.
+    const detailed = (n - 1) * 12 * requestedSub + 12 <= 65535;
+    const RING = detailed ? 12 : 10, SUB = detailed ? requestedSub : 5;
+    const occ = occlusionField(ca);
     const P = [];
     for (let i = 0; i < n; i++) P.push([ca[3 * i] * SC, ca[3 * i + 1] * SC, ca[3 * i + 2] * SC]);
     const at = (i) => P[Math.max(0, Math.min(n - 1, i))];
@@ -885,7 +944,7 @@
     const prof = [];
     for (let i = 0; i < n; i++) prof.push(profile(ss[i]));
 
-    const pos = [], nrm = [], col = [], idx = [], idxE = [];
+    const pos = [], nrm = [], col = [], ao = [], idx = [], idxE = [];
     let ring = 0;
     const segs = n - 1;
     for (let i = 0; i < segs; i++) {
@@ -905,14 +964,20 @@
         if (arrow) { w = t < 0.15 ? STRAND_W + (STRAND_ARROW - STRAND_W) * (t / 0.15) : STRAND_ARROW * (1 - (t - 0.15) / 0.85) + 0.05; h = 0.2 + (prof[i + 1][1] - 0.2) * t; }
         else { w = prof[i][0] + (prof[i + 1][0] - prof[i][0]) * t; h = prof[i][1] + (prof[i + 1][1] - prof[i][1]) * t; }
         w *= SC; h *= SC;
-        const c = COL[t < 0.5 ? e0 : e1] || COL.C;
+        const blend = t * t * (3 - 2 * t);
+        const c = V.lerp(COL[e0] || COL.C, COL[e1] || COL.C, blend);
+        const q = occ[i].map((v, j) => v + (occ[i + 1][j] - v) * blend);
         for (let r = 0; r < RING; r++) {
           const a = (r / RING) * Math.PI * 2, ca_ = Math.cos(a), sa = Math.sin(a);
           // elliptical cross-section: bn is the wide axis, nv the thin axis
           pos.push(p[0] + bn[0] * w * ca_ + nv[0] * h * sa, p[1] + bn[1] * w * ca_ + nv[1] * h * sa, p[2] + bn[2] * w * ca_ + nv[2] * h * sa);
           const nn = V.norm([bn[0] * ca_ / w + nv[0] * sa / h, bn[1] * ca_ / w + nv[1] * sa / h, bn[2] * ca_ / w + nv[2] * sa / h]);
           nrm.push(nn[0], nn[1], nn[2]);
-          col.push(c[0], c[1], c[2]);
+          const x = nn[0], y = nn[1], z = nn[2];
+          const density = 0.18 * q[0] + 0.82 * (q[1] * x * x + q[2] * y * y + q[3] * z * z + 2 * (q[4] * x * y + q[5] * x * z + q[6] * y * z));
+          const shade = 1 - 0.24 * (1 - Math.exp(-0.20 * density));
+          ao.push(shade);
+          col.push(c[0] * shade, c[1] * shade, c[2] * shade);
         }
         if (ring > 0) {
           // A β-sheet is a slab you fly OVER and never inside, so its back faces are only ever visible
@@ -931,7 +996,8 @@
       }
     }
     return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), col: new Float32Array(col),
-             idx: new Uint32Array(idx), idxCull: new Uint32Array(idxE) };
+             idx: new Uint32Array(idx), idxCull: new Uint32Array(idxE),
+             ao: new Float32Array(ao), ringSize: RING, subdivisions: SUB };
   }
 
   const api = { buildRibbon, COL };
@@ -962,11 +1028,14 @@
       if (!gl_FrontFacing) n = -n;
       vec3 v = normalize(-vPos);
       if (dot(n, v) < 0.0) n = -n;
-      float wrap = 0.6;
+      float wrap = 0.5;
       float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
       vec3 h = normalize(uLight + v);
-      float spec = pow(max(0.0, dot(n, h)), 40.0) * 0.25;
-      vec3 c = vCol * (uAmbient + diff * (1.0 - uAmbient)) + spec;
+      // Fixed world key + broad camera fill: contours stay readable inside the fold. A restrained
+      // satin highlight reveals curvature without turning an atom or the ribbon's edge pure white.
+      float fill = max(0.0, dot(n, v));
+      float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
+      vec3 c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
       c = mix(c, vCol, uUnlit);
       float d = length(vPos);
       // Geometry right on the lens has to go: a helix ribbon is 0.4 A thick, so a surface a fraction of
@@ -1061,7 +1130,7 @@
       const a = alpha === undefined ? 1 : alpha;
       gl.uniform1f(U.uAlpha, a);
       if (noDepth) gl.disable(gl.DEPTH_TEST);
-      if (additive) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); } // glows, never darkens
+      if (additive) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false); } // honour distance-faded x-ray / ghost alpha
       else if (a < 1) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
       const attr = (loc, b) => { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0); };
       attr(A.pos, m.vPos); attr(A.nrm, m.vNrm); attr(A.col, m.vCol);
@@ -1095,7 +1164,7 @@
       gl.uniform3f(U.uLight, l[0] / ll, l[1] / ll, l[2] / ll);
       gl.uniform3f(U.uFog, fog[0], fog[1], fog[2]);
       gl.uniform2f(U.uFogRange, fogNear, fogFar);
-      gl.uniform1f(U.uAmbient, 0.28);
+      gl.uniform1f(U.uAmbient, 0.34);
       gl.uniform1f(U.uUnlit, 0);
       gl.uniform1f(U.uAlpha, 1);
       gl.uniform3f(U.uNear, 0, 0, 0);
@@ -1182,8 +1251,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const SC = 7;                       // world units per Å
   const A = (x) => x * SC;            // Å -> world
   const BG = [5 / 255, 8 / 255, 18 / 255];
-  const TXT = 'rgb(219,230,255)';
-  const ELEM_COL = { H: 'rgb(255,179,71)', E: 'rgb(127,212,193)', C: 'rgb(150,158,190)' };
+  const TXT = 'rgb(231,237,242)';
+  const ELEM_COL = { H: 'rgb(235,186,118)', E: 'rgb(142,199,182)', C: 'rgb(143,156,179)' };
   const ELEM_NAME = { H: 'α-helix', E: 'β-strand', C: 'coil' };
   const SIDE_LEN = { G: 0, A: 1.5, S: 2.4, C: 2.6, T: 2.6, P: 2.4, V: 2.6, D: 3.0, N: 3.0, L: 3.6, I: 3.6, M: 4.2, E: 3.9, Q: 3.9, H: 4.4, K: 5.2, R: 6.0, F: 4.8, Y: 5.6, W: 5.8 };
   const VIOLET = [190 / 255, 140 / 255, 255 / 255], RED = [255 / 255, 110 / 255, 96 / 255];
@@ -1257,6 +1326,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // ---------------------------------------------------------------- state
   let fold = null, foldIdx = 0, titleCardT = 0;
   let previewC = [0, 0, 0], previewR = 1, previewA0 = 0;
+  let introPose = null, introBlend = 0;
   let seq = '', names = [], nums = [], ca = null, sc = null, ss = '', hw = null, rail = null;
   let postMesh = null;
   let ribbonGeom = null, glows = []; // glows: { i (residue), age }
@@ -1430,7 +1500,12 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (!sc) sc = graftSideChains(ca, seq, ss); // Cα-only input: template side chains
     hw = helixWeight(ss);
     rail = buildRail(ca, hw, ss, window.RAILOPT || undefined);
-    if (renderer) { ribbonGeom = buildRibbon(ca, ss, rail.axis); ribbonMesh = renderer.upload(ribbonGeom, ribbonMesh); }
+    if (renderer) {
+      // Phone fill-rate is precious: spend geometry on the round profile, retain the measured five
+      // samples per residue there, and use the finer longitudinal contour on a larger desktop view.
+      ribbonGeom = buildRibbon(ca, ss, rail.axis, { subdivisions: TOUCH || window.innerWidth < 640 ? 5 : 8 });
+      ribbonMesh = renderer.upload(ribbonGeom, ribbonMesh);
+    }
     buildRibbonGrid(); buildRibFrames(); // surfaceDist is a weak diagnostic; ribbonPenetration is the reliable one
     computePar();
     buildBlocks(); pruneUnfair(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
@@ -1478,6 +1553,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
       score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: ss[0], rank: '', base: 0, runFolds: 1, slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 });
     glows = [];
+    if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
     for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
     for (const c of cofs) { c.locked = false; c.judged = false; c.minD = 1e9; }
@@ -1493,7 +1569,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     dust = []; for (let i = 0; i < 140; i++) dust.push(spawnDust(Math.random() * A(45)));
     P.preview = PREVIEW_T;
     titleCardT = 4.5;
-    flash = { text: laneMode ? 'drag from where your finger lands to steer · let go to snap back · flick to lunge · second finger boosts' : 'fly into the pulsing side chains to knock them into place', t: 6 };
+    flash = { text: laneMode ? 'Drag to steer · fly into pulsing side chains' : 'Arrow keys to steer · fly into pulsing side chains', t: 6 };
   }
 
   // ---------------------------------------------------------------- fold minimap
@@ -1817,7 +1893,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   function blockSeg(b) { const d = blockDir(b); return [V.add(b.ca, V.scale(d, A(0.5))), V.add(b.ca, V.scale(d, A(blockLen(b))))]; }
   const PALE = [1, 0.82, 0.76];
   function blockColour(b) {
-    if (b.f <= 0) return V.lerp(resColour(seq[b.i]), [1, 1, 1], 0.45 + 0.4 * Math.sin(P.t * 2 * Math.PI * 1.6 + b.s * 0.01)); // unsettled: its own colour pulsing to white
+    if (b.f <= 0) return V.lerp(resColour(seq[b.i]), [0.94, 0.97, 1], 0.34 + 0.24 * Math.sin(P.t * 2 * Math.PI * 1.6 + b.s * 0.01)); // keep the target's colour and curvature throughout its pulse
     const WHITE = [1, 1, 1];
     if (b.f <= GRAB) return V.lerp(resColour(seq[b.i]), WHITE, 0.5 + 0.5 * b.f / GRAB);
     const g = (b.f - GRAB) / (1 - GRAB);
@@ -2084,24 +2160,24 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // Local frame: x across (r), y up (u), z forward (t). Units are model units × sc.
   function craftFaces(o, t, u, r, accent, sc) {
     const P = (dx, dy, dz) => V.add(V.add(V.add(o, V.scale(r, dx * sc)), V.scale(u, dy * sc)), V.scale(t, dz * sc));
-    const body = [132, 140, 168], side = [176, 186, 214], dark = [58, 62, 80], glass = [60, 96, 170], lite = [205, 212, 235];
+    const body = [224, 231, 232], side = [185, 199, 205], dark = [88, 105, 119], glass = [31, 48, 62], lite = [239, 241, 233];
     const RB = [P(-5, 0, -12), P(5, 0, -12)], RT = [P(-3.2, 2.8, -12), P(3.2, 2.8, -12)],
       MB = [P(-5.6, 0, 2), P(5.6, 0, 2)], MT = [P(-3.6, 3.0, 2), P(3.6, 3.0, 2)],
       FB = [P(-3.4, 0, 12), P(3.4, 0, 12)], FT = [P(-2.0, 2.0, 12), P(2.0, 2.0, 12)], N = P(0, 0.8, 22);
-    const accD = [accent[0] * 0.45, accent[1] * 0.45, accent[2] * 0.45], accG = [accent[0] * 0.8, accent[1] * 0.8, accent[2] * 0.8];
+    const accD = side, accG = body;
     const F = [
-      { v: [RT[0], RT[1], MT[1], MT[0]], c: body }, { v: [MT[0], MT[1], FT[1], FT[0]], c: body }, { v: [FT[0], FT[1], N], c: [150, 235, 255] },
+      { v: [RT[0], RT[1], MT[1], MT[0]], c: body }, { v: [MT[0], MT[1], FT[1], FT[0]], c: body }, { v: [FT[0], FT[1], N], c: lite },
       { v: [RB[0], RT[0], MT[0], MB[0]], c: side }, { v: [MB[0], MT[0], FT[0], FB[0]], c: side }, { v: [FB[0], FT[0], N], c: lite },
       { v: [RB[1], MB[1], MT[1], RT[1]], c: side }, { v: [MB[1], FB[1], FT[1], MT[1]], c: side }, { v: [FB[1], N, FT[1]], c: lite },
       { v: [RB[0], MB[0], MB[1], RB[1]], c: dark }, { v: [MB[0], FB[0], FB[1], MB[1]], c: dark }, { v: [FB[0], N, FB[1]], c: dark },
       { v: [RB[0], RB[1], RT[1], RT[0]], c: dark },
-      { v: [P(-0.8, 2.86, -11), P(0.8, 2.86, -11), P(0.6, 3.06, 2), P(-0.6, 3.06, 2)], c: accent, glow: true },
-      { v: [P(-0.6, 3.06, 2), P(0.6, 3.06, 2), P(0.35, 2.06, 11.5), P(-0.35, 2.06, 11.5)], c: accent, glow: true },
+      { v: [P(-0.8, 2.86, -11), P(0.8, 2.86, -11), P(0.6, 3.06, 2), P(-0.6, 3.06, 2)], c: body },
+      { v: [P(-0.6, 3.06, 2), P(0.6, 3.06, 2), P(0.35, 2.06, 11.5), P(-0.35, 2.06, 11.5)], c: body },
       { v: [P(-1.6, 3.0, -3), P(1.6, 3.0, -3), P(1.1, 4.3, -0.5), P(-1.1, 4.3, -0.5)], c: glass },
-      { v: [P(-1.1, 4.3, -0.5), P(1.1, 4.3, -0.5), P(0.8, 2.2, 7), P(-0.8, 2.2, 7)], c: [74, 102, 160] },
+      { v: [P(-1.1, 4.3, -0.5), P(1.1, 4.3, -0.5), P(0.8, 2.2, 7), P(-0.8, 2.2, 7)], c: [49, 72, 84] },
       { v: [P(-1.6, 3.0, -3), P(-1.1, 4.3, -0.5), P(-0.8, 2.2, 7)], c: glass }, { v: [P(1.6, 3.0, -3), P(0.8, 2.2, 7), P(1.1, 4.3, -0.5)], c: glass },
-      { v: [P(-5.6, 0.9, 2), P(-11.5, 1.1, -8.5), P(-5, 1.1, -12)], c: accG, glow: true }, { v: [P(-5.6, 0.7, 2), P(-5, 0.9, -12), P(-11.5, 0.9, -8.5)], c: accD },
-      { v: [P(5.6, 0.9, 2), P(5, 1.1, -12), P(11.5, 1.1, -8.5)], c: accG, glow: true }, { v: [P(5.6, 0.7, 2), P(11.5, 0.9, -8.5), P(5, 0.9, -12)], c: accD },
+      { v: [P(-5.6, 0.9, 2), P(-11.5, 1.1, -8.5), P(-5, 1.1, -12)], c: accG }, { v: [P(-5.6, 0.7, 2), P(-5, 0.9, -12), P(-11.5, 0.9, -8.5)], c: accD },
+      { v: [P(5.6, 0.9, 2), P(5, 1.1, -12), P(11.5, 1.1, -8.5)], c: accG }, { v: [P(5.6, 0.7, 2), P(11.5, 0.9, -8.5), P(5, 0.9, -12)], c: accD },
       { v: [P(0, 2.8, -12), P(0, 6.4, -11.2), P(0, 2.9, -5.5)], c: side }, { v: [P(0, 2.8, -12), P(0, 2.9, -5.5), P(0, 6.4, -11.2)], c: body },
     ];
     for (let sgn = -1; sgn <= 1; sgn += 2) {
@@ -2185,7 +2261,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // the ribbon glows white around a hit residue and fades back to its element colour
   function updateGlows(dt) {
     if (!renderer || !ribbonGeom || !glows.length) return;
-    const RING = 10, SUB = 5, n = seq.length;
+    const RING = ribbonGeom.ringSize, SUB = ribbonGeom.subdivisions, n = seq.length;
     const touched = new Map();
     for (const g of glows) {
       g.age += dt;
@@ -2198,7 +2274,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       const base = ribbonGeom.col.subarray(v0 * 3, (v0 + cnt) * 3);
       const out = new Float32Array(cnt * 3);
       const gold = [1, 0.86, 0.5];
-      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] - base[j]) * k;
+      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * k;
       renderer.updateColours(ribbonMesh, out, v0);
     }
     glows = glows.filter((g) => g.age < g.life + 0.05);
@@ -2216,7 +2292,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       sparks.push({ p: p.slice(), v, age: 0, life: 0.22 + Math.random() * 0.18, col, size: A(0.028 + Math.random() * 0.028) });
     }
   }
-  function pop(p, text, col) { pops.push({ text, age: 0, col: col || TXT, dx: (Math.random() - 0.5) * 60 }); }
+  function pop(p, text, col) {
+    // One stable acknowledgement; scores still accumulate normally through a burst of collections.
+    pops = [{ text, age: 0, col: col || TXT, dx: 0 }];
+  }
 
   function buildFx(dt) {
     if (!renderer) return;
@@ -2482,7 +2561,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   laneMode = TOUCH;
   const touchTarget = document.getElementById('stage') || glCanvas;
-  const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
+  const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #help, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
   // One handler set for both pointer events (preferred) and touch events (fallback).
   let doneAt = 0;
   function fingerDown(id, x, y) {
@@ -2542,7 +2621,14 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // on-screen buttons and scripted actions
   window.flyerAction = (name) => {
     ensureDrone();
-    if (name === 'start') { paused = false; return; }
+    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; return; }
+    if (name === 'resume') { paused = false; return; }
+    if (name === 'pause') {
+      paused = true;
+      for (const k of Object.keys(keys)) keys[k] = false;
+      touch.id = touch.boostId = null; touch.dx = touch.dy = 0; touch.boost = touch.hold = false; lunge.active = false;
+      return;
+    }
     if (name === 'autopilot') autopilot = !autopilot;
     else if (name === 'restart') reset();
     else if (name === 'next') nextFold(P.done);
@@ -2657,6 +2743,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
   function update(dt) {
     if (!rail) return;
+    introBlend = Math.max(0, introBlend - dt);
     if (P.preview > 0) {
       P.preview = Math.max(0, P.preview - dt);
       const frac = 1 - P.preview / PREVIEW_T;
@@ -3590,7 +3677,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       const t2 = V.add(V.scale(t, cp), V.scale(u, sp)); u = V.sub(V.scale(u, cp), V.scale(t, sp)); t = t2;
       const boosting = P.boostGlow > 0.5;
       const accent = P.flashT > 0.05 ? [255, 235, 160] : boosting ? [127, 212, 193] : [255, 179, 71];
-      engineCol = P.flashT > 0.05 ? [255, 240, 190] : boosting ? [115, 230, 255] : [255, 160, 70];
+      engineCol = P.flashT > 0.05 ? [250, 226, 177] : boosting ? [153, 227, 230] : [168, 210, 223];
       const origin = V.sub(V.sub(pos3, V.scale(u, 1.6 * CRAFT_SC)), V.scale(t, 5 * CRAFT_SC));
       buildCraft(origin, t, u, r, accent);
       // the ghost of your best run on this fold, at the same clock time
@@ -3676,9 +3763,26 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = Math.floor(window.innerWidth * dpr), h = Math.floor(window.innerHeight * dpr);
     const W = window.innerWidth, H = window.innerHeight;
+    const intro = document.getElementById('intro');
+    const showIntro = intro && !intro.hidden;
     if (renderer && rail) {
+      let eye = cam.pos, forward = cam.fwd, up = cam.up, shiftX = 0, shiftY = 0;
+      if (showIntro) {
+        // The idle sculpture has its own composition. Never feed this pose into the flight camera.
+        const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const pv = previewPose(0.14 + (still ? 0 : 0.04 * Math.sin(performance.now() / 9000)));
+        eye = V.add(previewC, V.scale(V.sub(pv.pos, previewC), W < 640 ? 1.20 : 1.65));
+        forward = V.norm(V.sub(previewC, eye)); up = pv.up;
+        shiftX = W < 640 ? 0 : 0.30; shiftY = W < 640 ? -0.48 : 0;
+        introPose = { eye, forward, up, shiftX, shiftY };
+      } else if (introBlend > 0 && introPose) {
+        const t = introBlend / 0.85, k = t * t * (3 - 2 * t);
+        eye = V.lerp(eye, introPose.eye, k); forward = V.norm(V.lerp(forward, introPose.forward, k));
+        up = V.norm(V.lerp(up, introPose.up, k)); shiftX = introPose.shiftX * k; shiftY = introPose.shiftY * k;
+      }
       projM = perspective(cam.fovDraw || cam.fov, w / h, 1, 4000);
-      viewM = lookAt(cam.pos, V.add(cam.pos, cam.fwd), cam.up);
+      projM[8] = shiftX; projM[9] = shiftY;
+      viewM = lookAt(eye, V.add(eye, forward), up);
       // The preview sits far enough out to frame the whole fold, well beyond the flight fog, so push the
       // fog back while it runs or the structure is invisible.
       const fogN = P.preview > 0 ? A(25) + previewR * 0.8 : A(25);
@@ -3687,47 +3791,51 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       // The two-pass fade doubles the work on the largest mesh in the scene, and on a phone that alone
       // cost enough frames to make the boost and the brake feel dead. Almost every frame has nothing
       // within the band, so ask first and draw once when the answer is no.
-      if (nearOn) {
-        renderer.draw(ribbonMesh, false, 1, false, false, nearSolidNow);
-        for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
-        if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
-        renderer.draw(ribbonMesh, false, 1, false, false, nearFadeNow);        // the near shell, faded out
-      } else {
-        renderer.draw(ribbonMesh);
-        for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
-        if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+      if (showIntro) renderer.draw(ribbonMesh);
+      else {
+        if (nearOn) {
+          renderer.draw(ribbonMesh, false, 1, false, false, nearSolidNow);
+          for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
+          if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+          renderer.draw(ribbonMesh, false, 1, false, false, nearFadeNow);        // the near shell, faded out
+        } else {
+          renderer.draw(ribbonMesh);
+          for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
+          if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+        }
+        // A silhouette of the craft, painted through whatever is in front of it. In a tight fold the ribbon
+        // comes between the lens and the ship and the player simply loses it. Drawn BEFORE the solid craft
+        // and with the same geometry, so wherever the ship is actually visible the solid pass covers it
+        // exactly and nothing looks doubled.
+        renderer.draw(gliderMesh, true, 0.45, false, true);
+        renderer.draw(gliderMesh);
+        renderer.draw(gliderGlowMesh, true);
+        renderer.draw(ghostMesh, false, 0.5);
+        // drawn through the geometry at low alpha: a ghost you cannot see round a bend tells you nothing,
+        // and it must never be mistaken for something you can hit
+        if (ghostPose && ghostCraftMesh) renderer.draw(ghostCraftMesh, true, 0.42, true, true);
+        renderer.draw(fxMesh, true, 1, true); // additive
+        // A cofactor sits buried in the fold, so the ribbon is always between it and the lens and the solid
+        // pass alone leaves it a dark smudge. A faint additive pass drawn through the geometry makes it glow
+        // from inside the protein — which is where it actually is, and reads as the thing the fold is built
+        // around rather than as another collectable stuck to the wall.
+        // The x-ray pass exists so a buried cofactor is not a dark smudge behind the ribbon. Up close there
+        // is nothing left to see through, and additive blending on top of the solid pass saturates the whole
+        // group to white — 1LDG's NADH sits 1.9 Å off the rail and filled a third of the screen with grey
+        // balls. Fade it out as it comes onto the lens, the same discipline the effect quads use.
+        if (cofMesh && cofs.length) {
+          let dn = 1e9;
+          for (const c of cofs) dn = Math.min(dn, V.len(V.sub(c.cen, cam.pos)));
+          const xa = 0.22 * clamp((dn / SC - 4.5) / 5.5, 0, 1);
+          if (xa > 0.02) renderer.draw(cofMesh, true, xa, true, true);
+        }
+        renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
       }
-      // A silhouette of the craft, painted through whatever is in front of it. In a tight fold the ribbon
-      // comes between the lens and the ship and the player simply loses it. Drawn BEFORE the solid craft
-      // and with the same geometry, so wherever the ship is actually visible the solid pass covers it
-      // exactly and nothing looks doubled.
-      renderer.draw(gliderMesh, true, 0.45, false, true);
-      renderer.draw(gliderMesh);
-      renderer.draw(gliderGlowMesh, true);
-      renderer.draw(ghostMesh, false, 0.5);
-      // drawn through the geometry at low alpha: a ghost you cannot see round a bend tells you nothing,
-      // and it must never be mistaken for something you can hit
-      if (ghostPose && ghostCraftMesh) renderer.draw(ghostCraftMesh, true, 0.42, true, true);
-      renderer.draw(fxMesh, true, 1, true); // additive
-      // A cofactor sits buried in the fold, so the ribbon is always between it and the lens and the solid
-      // pass alone leaves it a dark smudge. A faint additive pass drawn through the geometry makes it glow
-      // from inside the protein — which is where it actually is, and reads as the thing the fold is built
-      // around rather than as another collectable stuck to the wall.
-      // The x-ray pass exists so a buried cofactor is not a dark smudge behind the ribbon. Up close there
-      // is nothing left to see through, and additive blending on top of the solid pass saturates the whole
-      // group to white — 1LDG's NADH sits 1.9 Å off the rail and filled a third of the screen with grey
-      // balls. Fade it out as it comes onto the lens, the same discipline the effect quads use.
-      if (cofMesh && cofs.length) {
-        let dn = 1e9;
-        for (const c of cofs) dn = Math.min(dn, V.len(V.sub(c.cen, cam.pos)));
-        const xa = 0.45 * clamp((dn / SC - 4.5) / 5.5, 0, 1);
-        if (xa > 0.02) renderer.draw(cofMesh, true, xa, true, true);
-      }
-      renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
     }
     if (hudCanvas.width !== w || hudCanvas.height !== h) { hudCanvas.width = w; hudCanvas.height = h; }
     hud.setTransform(dpr, 0, 0, dpr, 0, 0);
     hud.clearRect(0, 0, w, h);
+    if (showIntro) return;
     const mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     const sans = 'system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif';
 
@@ -3771,101 +3879,70 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     pops.forEach((q, qi) => {
       const a = 1 - q.age / 1.1;
       hud.globalAlpha = Math.min(1, a * 1.5); hud.fillStyle = q.col; hud.textAlign = 'center'; hud.textBaseline = 'middle';
-      hud.font = `600 ${(compact0 ? 12 : 15) + (compact0 ? 4 : 6) * Math.min(1, q.age * 4)}px ${mono}`;
+      hud.font = `500 ${compact0 ? 14 : 17}px ${sans}`;
       // A pop is centred on a point in the world, so on a narrow phone a long one ("sheet repaired +500")
       // runs off the edge and is read as "f repaired +500". Keep the whole string on screen.
       const half = hud.measureText(q.text).width / 2 + 6;
       const px = clamp(anchor[0] + q.dx, half, Math.max(half, W - half));
-      hud.fillText(q.text, px, anchor[1] - 50 - 45 * q.age - 22 * (pops.length - 1 - qi));
+      hud.fillText(q.text, px, anchor[1] - 42 - 14 * q.age);
     });
     hud.globalAlpha = 1; hud.textBaseline = 'top';
 
-    // compact HUD on phones / narrow windows: score, one status line, title, bar
+    // A single hierarchy across phone and desktop: score + combo, fold identity, progress map.
     const compact = TOUCH || W < 640;
-    const M = compact ? 14 : 20;
-    // top left: score, time, speed, combo
+    const M = compact ? 18 : 28;
+    const veil = hud.createLinearGradient(0, 0, 0, 130);
+    veil.addColorStop(0, 'rgba(5,8,18,0.50)'); veil.addColorStop(1, 'rgba(5,8,18,0)');
+    hud.fillStyle = veil; hud.fillRect(0, 0, W, 130);
     hud.fillStyle = TXT; hud.textAlign = 'left';
-    hud.font = `600 ${compact ? 28 : 40}px ${mono}`;
-    hud.fillText(String(P.score), M, compact ? 10 : 14);
-    hud.font = `${compact ? 11 : 13}px ${mono}`;
-    if (compact) {
-      hud.fillText(`${P.fixed}/${totalHelix} fixed · ${P.missed} missed`, M, 44);
-    } else {
-      hud.fillText(`${P.t.toFixed(1)} s · ${P.speed.toFixed(0)} Å/s`, M, 62);
-      hud.fillText(`FIXED ${P.fixed} / ${totalHelix} · MISSED ${P.missed} · BEST ${best.score === null ? '—' : best.score}`, M, 82);
-    }
-    const comboY = compact ? 62 : 104;
+    hud.font = `500 ${compact ? 28 : 34}px ${sans}`;
+    hud.fillText(P.score.toLocaleString('en-US'), M, 14);
+    hud.font = `${compact ? 11 : 12}px ${sans}`;
+    hud.fillStyle = 'rgb(170,184,198)';
+    hud.fillText(`${P.fixed} / ${totalHelix} restored`, M, compact ? 49 : 57);
+    const comboY = compact ? 70 : 80;
     if (P.combo >= 2 && !P.done) {
-      const cb = 1 + 0.35 * P.comboPop * P.comboPop;
-      hud.fillStyle = 'rgb(190,140,255)'; hud.font = `600 ${Math.round((compact ? 16 : 22) * cb)}px ${mono}`;
-      hud.fillText(P.combo >= 5 ? `×${1 + Math.floor(P.combo / 5)}  combo ${P.combo}` : `combo ${P.combo}`, M, comboY);
-      if (!compact) {
-        const nxt = 5 - (P.combo % 5);
-        hud.font = `11px ${mono}`; hud.fillStyle = 'rgba(190,140,255,0.7)';
-        hud.fillText(`${nxt} more for ×${2 + Math.floor(P.combo / 5)}`, M, 130);
-      }
+      hud.fillStyle = ELEM_COL.H; hud.font = `500 ${compact ? 13 : 15}px ${sans}`;
+      hud.fillText(`×${1 + Math.floor(P.combo / 5)}  ·  ${P.combo} in a row`, M, comboY);
     }
-    // Slipstream: a bar that fills while you ride the corridor edge. Without a readout the speed gain is
-    // invisible — the craft simply feels faster for no stated reason, which reads as inconsistency.
     if (P.groove > 0.02 && !P.done && !autopilot) {
-      const gy = P.combo >= 2 ? (compact ? 92 : 162) : comboY;
-      const bw = compact ? 72 : 104, bh = compact ? 4 : 5;
-      const hot = P.groove > 0.85;
-      hud.fillStyle = 'rgba(127,212,193,0.22)'; hud.fillRect(M, gy - bh - 2, bw, bh);
-      hud.fillStyle = hot ? 'rgb(180,255,235)' : 'rgb(127,212,193)';
-      hud.fillRect(M, gy - bh - 2, bw * P.groove, bh);
-      hud.font = `600 ${compact ? 10 : 12}px ${mono}`;
-      hud.fillText(hot ? 'SLIPSTREAM' : 'slipstream', M + bw + 8, gy + 1);
+      const gy = comboY + (P.combo >= 2 ? 30 : 0), bw = compact ? 65 : 90;
+      hud.fillStyle = 'rgba(142,199,182,0.18)'; hud.fillRect(M, gy, bw, 3);
+      hud.fillStyle = ELEM_COL.E; hud.fillRect(M, gy, bw * P.groove, 3);
+      hud.font = `11px ${sans}`; hud.fillText('Slipstream', M, gy + 9);
     }
-    if (ghostPose && !P.done) {
-      const d = (P.s - ghostPose.s) / SC;
-      if (Math.abs(d) > 0.5) {
-        const ahead = d > 0;
-        hud.fillStyle = ahead ? 'rgb(127,212,193)' : 'rgb(220,130,130)';
-        hud.font = `600 ${compact ? 11 : 13}px ${mono}`; hud.textAlign = 'right';
-        hud.fillText(`${ahead ? '+' : ''}${d.toFixed(0)} Å vs best`, W - M, compact ? 82 : 86);
-        hud.textAlign = 'left';
-      }
+    if (autopilot) {
+      hud.fillStyle = 'rgb(170,184,198)'; hud.font = `11px ${sans}`;
+      hud.fillText('Autopilot', M, comboY + (P.combo >= 2 ? 24 : 0));
     }
-    if (autopilot) { hud.fillStyle = ELEM_COL.H; hud.font = `${compact ? 11 : 13}px ${mono}`; hud.fillText(compact ? 'AUTOPILOT' : 'AUTOPILOT (A)', M, P.combo >= 2 ? (compact ? 110 : 180) : comboY + 18); }
-    if (rail && !P.done && (rail.nodeAt(P.s).trench || 0) > 0.6) {
-      hud.fillStyle = P.ice ? 'rgb(150,220,255)' : ELEM_COL.E; hud.font = `600 ${compact ? 11 : 13}px ${mono}`; hud.textAlign = 'right';
-      hud.fillText(P.ice ? 'TRENCH RUN · glycine, low grip' : 'TRENCH RUN · left / right', W - M, compact ? 64 : 64); hud.textAlign = 'left';
-    }
-
-    // top right
-    hud.fillStyle = TXT; hud.textAlign = 'right';
-    hud.font = `500 ${compact ? 12 : 16}px ${sans}`;
-    hud.fillText((fold ? fold.title : '') + (P.runFolds > 1 ? `  · fold ${P.runFolds}` : ''), W - M, compact ? 12 : 18);
+    hud.textAlign = 'right'; hud.fillStyle = TXT;
+    hud.font = `500 ${compact ? 12 : 15}px ${sans}`;
+    let foldLabel = fold ? fold.title : '';
+    const labelWidth = W * (compact ? 0.54 : 0.50);
+    const fullLabel = foldLabel;
+    while (foldLabel.length > 4 && hud.measureText(foldLabel).width > labelWidth) foldLabel = foldLabel.slice(0, -1);
+    hud.fillText(foldLabel === fullLabel ? foldLabel : foldLabel.trimEnd() + '…', W - M, 19);
     if (rail) {
       const node = rail.nodeAt(P.s);
       const ri = clamp(Math.round(node.res), 0, seq.length - 1);
-      hud.font = `${compact ? 10 : 13}px ${mono}`;
+      hud.font = `${compact ? 10 : 12}px ${sans}`;
       hud.fillStyle = ELEM_COL[node.elem] || TXT;
-      hud.fillText(`${isPdb(fold) ? pdbCode(fold) + ' · ' : ''}${names[ri]} ${nums[ri]} · ${ELEM_NAME[node.elem] || 'coil'}`, W - M, compact ? 30 : 42);
-      hud.fillStyle = TXT;
-    }
-
-    // fold minimap, bottom right above the bar
-    const MS = compact ? 84 : 120;
-    // On a phone the bottom corners belong to the thumbs: brake bottom-left, boost bottom-right. Lift the
-    // minimap clear of the boost button rather than putting the button somewhere a thumb cannot reach.
-    const mmx = W - M - MS, mmy = H - (compact ? 14 + 78 : 34) - MS;
-    drawMinimap(mmx, mmy, MS);
-    // colour legend (desktop only), to the left of the minimap
-    if (rail && scheme === 'clustal' && !compact) {
-      hud.font = `10px ${mono}`; hud.textAlign = 'left'; hud.textBaseline = 'top';
-      let lx = W - 20, ly = H - 52;
-      const items = CLUSTAL_GROUPS.map(([aas, h]) => [aas.split('').join(''), h]);
-      let total = 0; for (const [t] of items) total += 14 + hud.measureText(t).width + 12;
-      lx = W - 20 - MS - 18 - total;
-      for (const [t, h] of items) {
-        hud.fillStyle = h; hud.fillRect(lx, ly + 1, 9, 9);
-        hud.fillStyle = 'rgba(219,230,255,0.7)'; hud.fillText(t, lx + 14, ly);
-        lx += 14 + hud.measureText(t).width + 12;
+      hud.fillText(`${isPdb(fold) ? pdbCode(fold) + '  ·  ' : ''}${ELEM_NAME[node.elem] || 'coil'}  ·  ${nums[ri]}`, W - M, 39);
+      if ((node.trench || 0) > 0.6) {
+        hud.fillStyle = ELEM_COL.E;
+        hud.fillText(P.ice ? 'Trench · low grip' : 'Trench · left / right', W - M, 57);
+      } else if (ghostPose && !P.done) {
+        const d = (P.s - ghostPose.s) / SC;
+        if (Math.abs(d) > 0.5) {
+          hud.fillStyle = d > 0 ? ELEM_COL.E : 'rgb(219,158,149)';
+          hud.fillText(`${d > 0 ? '+' : ''}${d.toFixed(0)} Å vs best`, W - M, 57);
+        }
       }
-      hud.fillStyle = 'rgba(219,230,255,0.45)'; hud.fillText('Clustal X colours · C to switch', W - 20 - MS - 18 - total, ly - 14);
     }
+    const MS = compact ? 80 : 104;
+    const mmx = W - M - MS, mmy = H - (compact ? 96 : 32) - MS;
+    drawMinimap(mmx, mmy, MS);
+    hud.textAlign = 'left';
     // lunge target dot
     if (laneMode && rail && !P.done && lunge.active) {
       const nd = rail.nodeAt(P.s + A(1.0));
@@ -3883,10 +3960,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       const cxI = W / 2, cyI = compact ? H * 0.22 : H * 0.26, r = (compact ? 70 : 110);
       const px = cxI + dx * r, py = cyI - dy * r;
       hud.save(); hud.translate(px, py); hud.rotate(Math.atan2(-dy, dx));
-      hud.globalAlpha = 0.25 + 0.55 * k;
-      hud.strokeStyle = k > 0.6 ? 'rgb(255,179,71)' : 'rgb(219,230,255)'; hud.lineWidth = 2 + 2 * k; hud.lineCap = 'round'; hud.lineJoin = 'round';
-      const sz = 10 + 12 * k;
-      for (let c = 0; c < 1 + Math.round(k * 2); c++) { hud.beginPath(); hud.moveTo(-sz + c * 9, -sz); hud.lineTo(c * 9, 0); hud.lineTo(-sz + c * 9, sz); hud.stroke(); }
+      hud.globalAlpha = 0.38 + 0.5 * k;
+      hud.strokeStyle = k > 0.6 ? ELEM_COL.H : TXT; hud.lineWidth = 2 + k; hud.lineCap = 'round'; hud.lineJoin = 'round';
+      const sz = 9 + 6 * k;
+      hud.beginPath(); hud.moveTo(-sz * 0.65, -sz); hud.lineTo(sz * 0.35, 0); hud.lineTo(-sz * 0.65, sz); hud.stroke();
       hud.restore(); hud.globalAlpha = 1;
     }
     // fold title card at the start of a fold: what you are flying, and who solved it
@@ -3956,7 +4033,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       // which sits dead centre at the C-terminus, dark and ship-sized — showed straight through the middle
       // rows and cut the text in half. Opaque enough to read against anything, still not a solid slab.
       hud.fillStyle = 'rgba(5,8,18,0.94)'; hud.fillRect(cx, cy, cw, ch);
-      hud.strokeStyle = 'rgba(219,230,255,0.25)'; hud.lineWidth = 1; hud.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1);
+      hud.strokeStyle = 'rgba(219,230,255,0.12)'; hud.lineWidth = 1; hud.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1);
       hud.textAlign = 'left'; hud.fillStyle = TXT; hud.textBaseline = 'top';
       // Finishing all ten in one run is the end of the campaign and should say so. runFolds counts the
       // folds carried through on this run, so it only reads 10 if you never broke the chain.
@@ -3968,7 +4045,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       let ttl = fold.title; const maxW = cw - 48 - (compact ? 60 : 90);
       while (ttl.length > 4 && hud.measureText(ttl + '…').width > maxW) ttl = ttl.slice(0, -1);
       hud.fillText(ttl === fold.title ? ttl : ttl.trim() + '…', cx + 24, cy + 40);
-      hud.textAlign = 'right'; hud.font = `600 ${compact ? 56 : 72}px ${mono}`;
+      hud.textAlign = 'right'; hud.font = `400 ${compact ? 56 : 72}px ${sans}`;
       hud.fillStyle = P.rank === 'S' ? 'rgb(190,140,255)' : P.rank === 'A' ? ELEM_COL.H : P.rank === 'B' ? ELEM_COL.E : TXT;
       hud.fillText(P.rank, cx + cw - 24, cy + 14);
       let y = cy + 96;
@@ -3988,7 +4065,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
     // footer (desktop only)
     hud.textAlign = 'center'; hud.font = `11px ${sans}`; hud.fillStyle = 'rgba(219,230,255,0.45)';
-    if (!compact) hud.fillText(TOUCH ? 'drag anywhere to steer · second finger to boost' : 'arrows / WASD move · Shift boost · Ctrl brake · A autopilot · C colours · N next fold · R restart · drop a .pdb or .cif anywhere', W / 2, H - 24);
     if (touch.id !== null && !laneMode) { // virtual stick
       hud.strokeStyle = 'rgba(219,230,255,0.35)'; hud.lineWidth = 1.5;
       hud.beginPath(); hud.arc(touch.x0, touch.y0, 60, 0, Math.PI * 2); hud.stroke();
@@ -4338,26 +4414,49 @@ const FIT_SLEW = 320, CAM_CLEAR = 0.9; // deg/s the lens may swing round the cra
 
 
 (function () {
-  var intro = document.getElementById('intro');
-  function start() { intro.hidden = true; document.body.classList.add('playing'); window.focus(); if (window.flyerAction) window.flyerAction('start'); }
-  intro.addEventListener('click', start);
-  intro.addEventListener('touchend', function (e) { e.preventDefault(); start(); }, { passive: false });
-  window.addEventListener('keydown', function () { if (!intro.hidden) start(); }, true);
-  document.getElementById('stage').addEventListener('click', function () { window.focus(); });
-  var brake = document.getElementById('brakebtn');
-  function brakeOn(e) { e.preventDefault(); e.stopPropagation(); brake.classList.add('on'); window.flyerAction('brakeOn'); }
-  function brakeOff(e) { if (e) { e.preventDefault(); e.stopPropagation(); } brake.classList.remove('on'); window.flyerAction('brakeOff'); }
-  brake.addEventListener('pointerdown', brakeOn); brake.addEventListener('pointerup', brakeOff); brake.addEventListener('pointercancel', brakeOff); brake.addEventListener('pointerleave', brakeOff);
-  var boost = document.getElementById('boostbtn');
-  function boostOn(e) { e.preventDefault(); e.stopPropagation(); boost.classList.add('on'); window.flyerAction('boostOn'); }
-  function boostOff(e) { if (e) { e.preventDefault(); e.stopPropagation(); } boost.classList.remove('on'); window.flyerAction('boostOff'); }
-  boost.addEventListener('pointerdown', boostOn); boost.addEventListener('pointerup', boostOff); boost.addEventListener('pointercancel', boostOff); boost.addEventListener('pointerleave', boostOff);
-  var menurow = document.getElementById('menurow');
-  document.getElementById('menubtn').addEventListener('click', function (e) { e.stopPropagation(); menurow.hidden = !menurow.hidden; });
-  document.querySelectorAll('#menurow button').forEach(function (b) {
-    b.addEventListener('click', function (e) { e.stopPropagation(); window.flyerAction(b.dataset.act); menurow.hidden = true; b.blur(); });
+  var intro = document.getElementById('intro'), begin = document.getElementById('beginbtn');
+  var help = document.getElementById('help'), menurow = document.getElementById('menurow'), menu = document.getElementById('menubtn');
+  function closeMenu() { menurow.hidden = true; menu.setAttribute('aria-expanded', 'false'); }
+  function start() {
+    if (document.getElementById('nogl')) return;
+    intro.hidden = true; document.body.classList.add('playing'); begin.blur(); window.focus();
+    if (window.flyerAction) window.flyerAction('start');
+  }
+  begin.addEventListener('click', start);
+  function showHelp() {
+    closeMenu();
+    if (!intro.hidden) { help.showModal(); return; }
+    window.flyerAction('pause'); help.showModal();
+  }
+  document.getElementById('learnbtn').addEventListener('click', showHelp);
+  document.getElementById('helpbtn').addEventListener('click', showHelp);
+  function closeHelp() { help.close(); if (intro.hidden) window.flyerAction('resume'); }
+  document.getElementById('helpclose').addEventListener('click', closeHelp);
+  help.addEventListener('cancel', function (e) { e.preventDefault(); closeHelp(); });
+  help.addEventListener('close', function () { if (intro.hidden && !help.open) window.flyerAction('resume'); });
+  window.addEventListener('keydown', function (e) {
+    if (help.open) { e.stopImmediatePropagation(); return; }
+    if (!intro.hidden) {
+      e.stopImmediatePropagation();
+      if (e.target.tagName !== 'BUTTON' && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); start(); }
+      return;
+    }
+    if (e.key === 'Escape') closeMenu();
+    if (e.target.tagName === 'BUTTON') { e.stopImmediatePropagation(); return; }
+  }, true);
+  document.getElementById('stage').addEventListener('click', function (e) { if (e.target.tagName === 'CANVAS') window.focus(); });
+  function holdButton(id, action) {
+    var button = document.getElementById(id);
+    function off(e) { if (e) { e.preventDefault(); e.stopPropagation(); } button.classList.remove('on'); window.flyerAction(action + 'Off'); }
+    button.addEventListener('pointerdown', function (e) { e.preventDefault(); e.stopPropagation(); button.classList.add('on'); window.flyerAction(action + 'On'); });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (name) { button.addEventListener(name, off); });
+    window.addEventListener('blur', function () { off(); });
+  }
+  holdButton('brakebtn', 'brake'); holdButton('boostbtn', 'boost');
+  menu.addEventListener('click', function (e) { e.stopPropagation(); menurow.hidden = !menurow.hidden; menu.setAttribute('aria-expanded', String(!menurow.hidden)); });
+  document.querySelectorAll('#menurow button[data-act]').forEach(function (button) {
+    button.addEventListener('click', function (e) { e.stopPropagation(); window.flyerAction(button.dataset.act); closeMenu(); button.blur(); });
   });
-  intro.focus();
 })();
 </script>
 

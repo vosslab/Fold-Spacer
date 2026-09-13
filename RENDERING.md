@@ -8,6 +8,13 @@ them out loud.
 **Read this whole file before changing a shader.** Several of the obvious ideas have been
 tried here and rejected for reasons that are not obvious.
 
+**Visual pass, 2026-09-14:** the baked AO and lighting work below is now implemented. The
+opening screen shows the ribbon as a slowly moving sculpture, with an explicit Begin button;
+instructions, colour legend and credits live in a keyboard-accessible help dialog that pauses
+flight. Phone and desktop share a quieter HUD. The craft has a pearl-grey hull, dark canopy
+and small engine accents. Near cuts, element culling, flight physics and flight-camera tuning
+are preserved. See the new playtest entry for the geometry/performance tradeoff.
+
 ---
 
 ## 1. What you are working with
@@ -18,8 +25,8 @@ the hard problem: everything is the same three colours and lit the same way.
 
 | file | what it does |
 |---|---|
-| `gl.js` | the entire renderer, ~165 lines. One WebGL1 program. |
-| `cartoon.js` | builds the ribbon mesh from Cα only. `RING = 10`, `SUB = 5`. |
+| `gl.js` | the entire renderer. One WebGL1 program. |
+| `cartoon.js` | ribbon and baked AO. `RING = 12`; `SUB = 5` on phones/narrow views, 8 on desktop. Larger imports retain the old 10 × 5 budget if the new mesh would cross the 16-bit vertex limit. |
 | `game.js` | builds every other mesh and issues all draws. HUD is a separate 2D canvas. |
 
 ### The one shader
@@ -27,7 +34,8 @@ the hard problem: everything is the same three colours and lit the same way.
 `gl.js` has a single lit, fogged, two-sided vertex-colour program. Per fragment:
 
 - two-sided normal flip (`gl_FrontFacing`, then a second flip toward the viewer)
-- **wrap diffuse** (`wrap = 0.6`) from one light, plus a `pow(…, 40) * 0.25` specular
+- **wrap diffuse** (`wrap = 0.5`) from a fixed world light, plus camera fill (`0.24 · N·V`)
+  and a broad satin highlight (`pow(…, 22) * 0.13`); ambient is 0.34
 - `uAmbient`, `uUnlit` (to bypass lighting entirely), `uAlpha`
 - linear→smoothstep fog to a flat colour
 - `uNear` — the near-geometry cut, described in §3
@@ -35,9 +43,9 @@ the hard problem: everything is the same three colours and lit the same way.
 Uniforms: `uProj uView uLight uFog uFogRange uAmbient uUnlit uAlpha uNear`. Attributes:
 `aPos aNrm aCol`. That is the whole surface area.
 
-**The light is fixed in view space** — `renderer.begin(..., [0.3, 0.85, 0.45], ...)` — so
-it is a headlight that never moves relative to the camera. This is the single biggest
-reason surfaces read flat.
+**Correction to the original handover:** the `[0.3, 0.85, 0.45]` light already was fixed in
+world space: `begin()` transforms it by the view matrix. The new term is the soft camera
+fill, which keeps surfaces readable while the world light supplies changing form cues.
 
 **There is no model matrix.** Every mesh is baked in world space and re-uploaded when it
 moves. See §5.
@@ -64,31 +72,27 @@ Only β-strand triangles use it — see §3.
 
 ## 2. Where the real wins are
 
-My honest ranking. The first two would change how the game looks more than everything
-else combined.
+The first two are implemented. The others remain candidates, subject to measurement.
 
-### (a) Ambient occlusion, baked into vertex colour — highest value, lowest risk
+### (a) Ambient occlusion, baked into vertex colour — implemented
 
 A protein is all crevices, and nothing in the current pipeline expresses them. Screen-space
 AO needs a depth pass and `WEBGL_depth_texture`, which is a real architectural change.
 
-**But the pipeline is already vertex-colour-only**, and the geometry is static per fold.
-So bake it: at load, for each ribbon vertex, compute occlusion from the density of nearby
-Cα atoms (or cast a few rays against `ribFrames`, which already exists in `game.js` as an
-analytic ribbon representation) and multiply it into `aCol`. No shader change, no new
-attribute, no per-frame cost. `buildRibbon` already runs per fold and `updateColours` can
-rewrite colours in place.
+`occlusionField()` uses spatial buckets of Cα atoms within 9 Å, excluding the three nearest
+sequence neighbours on either side. A density tensor per residue gives a two-sided,
+normal-dependent shading factor, smoothly interpolated along the ribbon. It is an
+approximation, not ray-traced visibility. The factor is bounded to 0.76–1 and baked into
+`col`, with `ao` retained separately. No new shader attribute or per-frame AO work.
 
-Watch: the ribbon's colours are also used for the **glow-on-collect** effect
-(`renderer.updateColours(ribbonMesh, out, v0)` in `game.js`). Bake AO into the base colour
-that effect starts from, or the glow will erase it.
+The **glow-on-collect** effect uses that baked base and also scales its gold target by AO.
+`updateGlows()` reads `ringSize` and `subdivisions` from the mesh; do not restore the old
+hardcoded 10 × 5 offsets. Restart restores all base colours before clearing the glow list.
 
-### (b) A second light
+### (b) A second lighting term — implemented
 
-One view-space headlight means no form. A fixed **world-space** fill or rim light from a
-different direction would separate a ribbon from the one behind it instantly. Two extra
-uniforms and three lines of fragment shader. Keep the headlight — the game is often in
-places nothing else would reach.
+The original world key is complemented by a camera fill, using the existing view vector.
+No additional uniforms or passes. Keep both: the camera fill is necessary inside helices.
 
 ### (c) Sphere impostors for side-chain atoms
 
@@ -103,8 +107,10 @@ See §5. This is a performance and cleanliness win, not a looks win, but it unbl
 
 ### (e) Ribbon tessellation
 
-`RING = 10` faceting is visible when the lens is close, which is most of the time. Raising
-it is cheap on desktop and not on a phone; measure before and after with §6.
+The 12-point cross-section includes the thin-axis extrema of the elliptical profile. Eight
+longitudinal samples made the phone software-rendering benchmark 40–75% slower, so phones
+retain five. The final measured phone overhead is roughly 4–7% (software renderer, not a
+physical-phone FPS claim). Re-measure before increasing it.
 
 ---
 
@@ -174,7 +180,7 @@ replaced by a push along the surface normal by exactly the penetration depth.
   instancing.
 - **The craft's silhouette is built from quads with a normal-flip heuristic**, not a
   consistent winding — which is why global culling could not simply be turned on.
-- **No shadows, no AO, no post-processing, no framebuffer.** `antialias: true` is requested
+- **No shadows, no screen-space AO, no post-processing, no framebuffer.** `antialias: true` is requested
   at context creation and may be ignored on mobile; there is nowhere to put FXAA without
   introducing a render target.
 - **Colour is the only material channel.** No textures, no roughness, no matcap.
@@ -216,6 +222,13 @@ python3 tools/fairness.py            node tools/phone_test.js
 node tools/nogl_test.js              bash tools/chain_eval.sh
 ```
 
+Also run `node tools/visual_test.js /tmp/flyer-review` for the opening/help flows, phone and
+desktop screenshots, small/landscape layouts, and rendering without the index extension.
+It checks the actual reached residue, including the preview's rounded-to-zero status trap.
+`FLYER_BENCH=1 node tools/visual_test.js /tmp/flyer-review /absolute/path/to/build.html` measures
+55 repeated frozen draws per fold (5 warmups), with a one-pixel readback to wait for GPU work.
+Run builds sequentially on an otherwise quiet machine; `gl.finish()` alone understated cost.
+
 **Camera/comfort diagnostics** (these catch rendering changes that quietly move the lens):
 `window.CLIPCHK=1` gives `camIn` (frames with the lens inside drawn geometry — should stay
 at 0–1 a fold) and `camTight`. `window.BUMPS=1` gives the per-frame lens-step histogram.
@@ -248,13 +261,16 @@ Every one of these cost real time.
    load has hit 60. Timing-dependent checks fail for reasons unrelated to the code.
 7. **The per-frame status block sits behind the preview's early return**, so anything
    written there is stale for the 3.2 s orbit at the start of a fold.
+8. **Additive draws must respect alpha.** The previous `ONE, ONE` blend ignored `uAlpha`,
+   so distance-faded cofactor x-ray and ghost passes were full strength. It is now
+   `SRC_ALPHA, ONE`; effect meshes already encode their own fade into vertex colours and
+   use `uAlpha = 1`. Cofactor x-ray strength is 0.22, with its existing near-distance fade.
 
 ---
 
-## 8. If you only do one thing
+## 8. Next visual review
 
-Bake ambient occlusion into the ribbon's vertex colours at load, and add a second,
-world-space light. Neither needs a new attribute, a render target, an extension, or a
-change to the draw order — and between them they give the fold the depth it currently
-lacks. Screenshot 1LDG at residues 34 and 72 and 1M56 at 120 before and after, and
-pixel-diff them.
+The first pass now combines AO, lighting, a coordinated palette, craft materials and interface
+hierarchy. Review it in motion on a physical phone before raising tessellation or adding
+effects. Keep comparing 1LDG at residues 34 and 72 and 1M56 at 120, along with the bundle's
+helix interior and 1QJ8's sheet. The underlying camera/culling contracts remain the priority.

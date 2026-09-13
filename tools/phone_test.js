@@ -72,20 +72,21 @@ function check(name, ok, detail) { results.push([name, ok, detail]); console.log
     check('page loaded, no error', (await evaluate('window.flyerStatus && window.flyerStatus().err')) == null);
     check('coarse pointer detected → lane mode on', (await evaluate('window.flyerStatus().lane')) !== null, 'lane=' + (await evaluate('JSON.stringify(window.flyerStatus().lane)')));
     check('intro visible at start', (await evaluate("!document.getElementById('intro').hidden")));
-    // The intro card ships from tools/bundle_template.html, NOT from index.html — index.html is a bare dev
-    // page with no card at all. A whole version's worth of card edits was once applied to index.html by
-    // mistake and silently did nothing. This fails if a mechanic exists in the game but not on the card.
+    // Instructions now live behind a real help button. Check that they remain reachable, the dialog
+    // doesn't start the game, and the explicit Begin button works with a real touch event.
     {
-      const txt = await evaluate('(document.getElementById("intro") || {}).innerText || ""');
+      await evaluate('document.getElementById("learnbtn").click()');
+      check('help opens without starting the flight', await evaluate('document.getElementById("help").open && !document.getElementById("intro").hidden && window.flyerStatus().t === 0'));
+      const txt = await evaluate('(document.getElementById("help") || {}).innerText || ""');
       const want = ['barrel roll', 'slipstream', 'cofactor', 'ghost'];
       const missing = want.filter((w) => String(txt).toLowerCase().indexOf(w) < 0);
-      check('the intro card describes the current mechanics', missing.length === 0,
+      check('help describes the current mechanics', missing.length === 0,
         missing.length ? `missing: ${missing.join(', ')}` : want.join(', '));
+      await evaluate('document.getElementById("helpclose").click()');
     }
-    // tap on the card (bottom sheet on phones)
-    const cardBox = await evaluate("(function(){var r=document.querySelector('#intro .card').getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2];})()");
+    const cardBox = await evaluate("(function(){var r=document.getElementById('beginbtn').getBoundingClientRect(); return [r.left+r.width/2, r.top+r.height/2];})()");
     await tap(cardBox[0], cardBox[1]); await sleep(300);
-    check('tap dismisses intro', (await evaluate("document.getElementById('intro').hidden")));
+    check('Begin flight dismisses intro', (await evaluate("document.getElementById('intro').hidden")));
     // The fold opens with a rotating preview of the structure; the tap above skips it, but it still eases
     // into the flight camera. Wait for the game to actually be flying before testing any control. Note
     // `preview` is undefined until the first update, so an undefined must count as "still previewing" —

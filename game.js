@@ -4,8 +4,8 @@
   const SC = 7;                       // world units per Å
   const A = (x) => x * SC;            // Å -> world
   const BG = [5 / 255, 8 / 255, 18 / 255];
-  const TXT = 'rgb(219,230,255)';
-  const ELEM_COL = { H: 'rgb(255,179,71)', E: 'rgb(127,212,193)', C: 'rgb(150,158,190)' };
+  const TXT = 'rgb(231,237,242)';
+  const ELEM_COL = { H: 'rgb(235,186,118)', E: 'rgb(142,199,182)', C: 'rgb(143,156,179)' };
   const ELEM_NAME = { H: 'α-helix', E: 'β-strand', C: 'coil' };
   const SIDE_LEN = { G: 0, A: 1.5, S: 2.4, C: 2.6, T: 2.6, P: 2.4, V: 2.6, D: 3.0, N: 3.0, L: 3.6, I: 3.6, M: 4.2, E: 3.9, Q: 3.9, H: 4.4, K: 5.2, R: 6.0, F: 4.8, Y: 5.6, W: 5.8 };
   const VIOLET = [190 / 255, 140 / 255, 255 / 255], RED = [255 / 255, 110 / 255, 96 / 255];
@@ -79,6 +79,7 @@
   // ---------------------------------------------------------------- state
   let fold = null, foldIdx = 0, titleCardT = 0;
   let previewC = [0, 0, 0], previewR = 1, previewA0 = 0;
+  let introPose = null, introBlend = 0;
   let seq = '', names = [], nums = [], ca = null, sc = null, ss = '', hw = null, rail = null;
   let postMesh = null;
   let ribbonGeom = null, glows = []; // glows: { i (residue), age }
@@ -252,7 +253,12 @@
     if (!sc) sc = graftSideChains(ca, seq, ss); // Cα-only input: template side chains
     hw = helixWeight(ss);
     rail = buildRail(ca, hw, ss, window.RAILOPT || undefined);
-    if (renderer) { ribbonGeom = buildRibbon(ca, ss, rail.axis); ribbonMesh = renderer.upload(ribbonGeom, ribbonMesh); }
+    if (renderer) {
+      // Phone fill-rate is precious: spend geometry on the round profile, retain the measured five
+      // samples per residue there, and use the finer longitudinal contour on a larger desktop view.
+      ribbonGeom = buildRibbon(ca, ss, rail.axis, { subdivisions: TOUCH || window.innerWidth < 640 ? 5 : 8 });
+      ribbonMesh = renderer.upload(ribbonGeom, ribbonMesh);
+    }
     buildRibbonGrid(); buildRibFrames(); // surfaceDist is a weak diagnostic; ribbonPenetration is the reliable one
     computePar();
     buildBlocks(); pruneUnfair(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
@@ -300,6 +306,7 @@
     Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
       score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: ss[0], rank: '', base: 0, runFolds: 1, slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 });
     glows = [];
+    if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
     for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
     for (const c of cofs) { c.locked = false; c.judged = false; c.minD = 1e9; }
@@ -315,7 +322,7 @@
     dust = []; for (let i = 0; i < 140; i++) dust.push(spawnDust(Math.random() * A(45)));
     P.preview = PREVIEW_T;
     titleCardT = 4.5;
-    flash = { text: laneMode ? 'drag from where your finger lands to steer · let go to snap back · flick to lunge · second finger boosts' : 'fly into the pulsing side chains to knock them into place', t: 6 };
+    flash = { text: laneMode ? 'Drag to steer · fly into pulsing side chains' : 'Arrow keys to steer · fly into pulsing side chains', t: 6 };
   }
 
   // ---------------------------------------------------------------- fold minimap
@@ -639,7 +646,7 @@
   function blockSeg(b) { const d = blockDir(b); return [V.add(b.ca, V.scale(d, A(0.5))), V.add(b.ca, V.scale(d, A(blockLen(b))))]; }
   const PALE = [1, 0.82, 0.76];
   function blockColour(b) {
-    if (b.f <= 0) return V.lerp(resColour(seq[b.i]), [1, 1, 1], 0.45 + 0.4 * Math.sin(P.t * 2 * Math.PI * 1.6 + b.s * 0.01)); // unsettled: its own colour pulsing to white
+    if (b.f <= 0) return V.lerp(resColour(seq[b.i]), [0.94, 0.97, 1], 0.34 + 0.24 * Math.sin(P.t * 2 * Math.PI * 1.6 + b.s * 0.01)); // keep the target's colour and curvature throughout its pulse
     const WHITE = [1, 1, 1];
     if (b.f <= GRAB) return V.lerp(resColour(seq[b.i]), WHITE, 0.5 + 0.5 * b.f / GRAB);
     const g = (b.f - GRAB) / (1 - GRAB);
@@ -906,24 +913,24 @@
   // Local frame: x across (r), y up (u), z forward (t). Units are model units × sc.
   function craftFaces(o, t, u, r, accent, sc) {
     const P = (dx, dy, dz) => V.add(V.add(V.add(o, V.scale(r, dx * sc)), V.scale(u, dy * sc)), V.scale(t, dz * sc));
-    const body = [132, 140, 168], side = [176, 186, 214], dark = [58, 62, 80], glass = [60, 96, 170], lite = [205, 212, 235];
+    const body = [224, 231, 232], side = [185, 199, 205], dark = [88, 105, 119], glass = [31, 48, 62], lite = [239, 241, 233];
     const RB = [P(-5, 0, -12), P(5, 0, -12)], RT = [P(-3.2, 2.8, -12), P(3.2, 2.8, -12)],
       MB = [P(-5.6, 0, 2), P(5.6, 0, 2)], MT = [P(-3.6, 3.0, 2), P(3.6, 3.0, 2)],
       FB = [P(-3.4, 0, 12), P(3.4, 0, 12)], FT = [P(-2.0, 2.0, 12), P(2.0, 2.0, 12)], N = P(0, 0.8, 22);
-    const accD = [accent[0] * 0.45, accent[1] * 0.45, accent[2] * 0.45], accG = [accent[0] * 0.8, accent[1] * 0.8, accent[2] * 0.8];
+    const accD = side, accG = body;
     const F = [
-      { v: [RT[0], RT[1], MT[1], MT[0]], c: body }, { v: [MT[0], MT[1], FT[1], FT[0]], c: body }, { v: [FT[0], FT[1], N], c: [150, 235, 255] },
+      { v: [RT[0], RT[1], MT[1], MT[0]], c: body }, { v: [MT[0], MT[1], FT[1], FT[0]], c: body }, { v: [FT[0], FT[1], N], c: lite },
       { v: [RB[0], RT[0], MT[0], MB[0]], c: side }, { v: [MB[0], MT[0], FT[0], FB[0]], c: side }, { v: [FB[0], FT[0], N], c: lite },
       { v: [RB[1], MB[1], MT[1], RT[1]], c: side }, { v: [MB[1], FB[1], FT[1], MT[1]], c: side }, { v: [FB[1], N, FT[1]], c: lite },
       { v: [RB[0], MB[0], MB[1], RB[1]], c: dark }, { v: [MB[0], FB[0], FB[1], MB[1]], c: dark }, { v: [FB[0], N, FB[1]], c: dark },
       { v: [RB[0], RB[1], RT[1], RT[0]], c: dark },
-      { v: [P(-0.8, 2.86, -11), P(0.8, 2.86, -11), P(0.6, 3.06, 2), P(-0.6, 3.06, 2)], c: accent, glow: true },
-      { v: [P(-0.6, 3.06, 2), P(0.6, 3.06, 2), P(0.35, 2.06, 11.5), P(-0.35, 2.06, 11.5)], c: accent, glow: true },
+      { v: [P(-0.8, 2.86, -11), P(0.8, 2.86, -11), P(0.6, 3.06, 2), P(-0.6, 3.06, 2)], c: body },
+      { v: [P(-0.6, 3.06, 2), P(0.6, 3.06, 2), P(0.35, 2.06, 11.5), P(-0.35, 2.06, 11.5)], c: body },
       { v: [P(-1.6, 3.0, -3), P(1.6, 3.0, -3), P(1.1, 4.3, -0.5), P(-1.1, 4.3, -0.5)], c: glass },
-      { v: [P(-1.1, 4.3, -0.5), P(1.1, 4.3, -0.5), P(0.8, 2.2, 7), P(-0.8, 2.2, 7)], c: [74, 102, 160] },
+      { v: [P(-1.1, 4.3, -0.5), P(1.1, 4.3, -0.5), P(0.8, 2.2, 7), P(-0.8, 2.2, 7)], c: [49, 72, 84] },
       { v: [P(-1.6, 3.0, -3), P(-1.1, 4.3, -0.5), P(-0.8, 2.2, 7)], c: glass }, { v: [P(1.6, 3.0, -3), P(0.8, 2.2, 7), P(1.1, 4.3, -0.5)], c: glass },
-      { v: [P(-5.6, 0.9, 2), P(-11.5, 1.1, -8.5), P(-5, 1.1, -12)], c: accG, glow: true }, { v: [P(-5.6, 0.7, 2), P(-5, 0.9, -12), P(-11.5, 0.9, -8.5)], c: accD },
-      { v: [P(5.6, 0.9, 2), P(5, 1.1, -12), P(11.5, 1.1, -8.5)], c: accG, glow: true }, { v: [P(5.6, 0.7, 2), P(11.5, 0.9, -8.5), P(5, 0.9, -12)], c: accD },
+      { v: [P(-5.6, 0.9, 2), P(-11.5, 1.1, -8.5), P(-5, 1.1, -12)], c: accG }, { v: [P(-5.6, 0.7, 2), P(-5, 0.9, -12), P(-11.5, 0.9, -8.5)], c: accD },
+      { v: [P(5.6, 0.9, 2), P(5, 1.1, -12), P(11.5, 1.1, -8.5)], c: accG }, { v: [P(5.6, 0.7, 2), P(11.5, 0.9, -8.5), P(5, 0.9, -12)], c: accD },
       { v: [P(0, 2.8, -12), P(0, 6.4, -11.2), P(0, 2.9, -5.5)], c: side }, { v: [P(0, 2.8, -12), P(0, 2.9, -5.5), P(0, 6.4, -11.2)], c: body },
     ];
     for (let sgn = -1; sgn <= 1; sgn += 2) {
@@ -1007,7 +1014,7 @@
   // the ribbon glows white around a hit residue and fades back to its element colour
   function updateGlows(dt) {
     if (!renderer || !ribbonGeom || !glows.length) return;
-    const RING = 10, SUB = 5, n = seq.length;
+    const RING = ribbonGeom.ringSize, SUB = ribbonGeom.subdivisions, n = seq.length;
     const touched = new Map();
     for (const g of glows) {
       g.age += dt;
@@ -1020,7 +1027,7 @@
       const base = ribbonGeom.col.subarray(v0 * 3, (v0 + cnt) * 3);
       const out = new Float32Array(cnt * 3);
       const gold = [1, 0.86, 0.5];
-      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] - base[j]) * k;
+      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * k;
       renderer.updateColours(ribbonMesh, out, v0);
     }
     glows = glows.filter((g) => g.age < g.life + 0.05);
@@ -1038,7 +1045,10 @@
       sparks.push({ p: p.slice(), v, age: 0, life: 0.22 + Math.random() * 0.18, col, size: A(0.028 + Math.random() * 0.028) });
     }
   }
-  function pop(p, text, col) { pops.push({ text, age: 0, col: col || TXT, dx: (Math.random() - 0.5) * 60 }); }
+  function pop(p, text, col) {
+    // One stable acknowledgement; scores still accumulate normally through a burst of collections.
+    pops = [{ text, age: 0, col: col || TXT, dx: 0 }];
+  }
 
   function buildFx(dt) {
     if (!renderer) return;
@@ -1304,7 +1314,7 @@
   const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
   laneMode = TOUCH;
   const touchTarget = document.getElementById('stage') || glCanvas;
-  const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
+  const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #help, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
   // One handler set for both pointer events (preferred) and touch events (fallback).
   let doneAt = 0;
   function fingerDown(id, x, y) {
@@ -1364,7 +1374,14 @@
   // on-screen buttons and scripted actions
   window.flyerAction = (name) => {
     ensureDrone();
-    if (name === 'start') { paused = false; return; }
+    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; return; }
+    if (name === 'resume') { paused = false; return; }
+    if (name === 'pause') {
+      paused = true;
+      for (const k of Object.keys(keys)) keys[k] = false;
+      touch.id = touch.boostId = null; touch.dx = touch.dy = 0; touch.boost = touch.hold = false; lunge.active = false;
+      return;
+    }
     if (name === 'autopilot') autopilot = !autopilot;
     else if (name === 'restart') reset();
     else if (name === 'next') nextFold(P.done);
@@ -1479,6 +1496,7 @@
 
   function update(dt) {
     if (!rail) return;
+    introBlend = Math.max(0, introBlend - dt);
     if (P.preview > 0) {
       P.preview = Math.max(0, P.preview - dt);
       const frac = 1 - P.preview / PREVIEW_T;
@@ -2412,7 +2430,7 @@
       const t2 = V.add(V.scale(t, cp), V.scale(u, sp)); u = V.sub(V.scale(u, cp), V.scale(t, sp)); t = t2;
       const boosting = P.boostGlow > 0.5;
       const accent = P.flashT > 0.05 ? [255, 235, 160] : boosting ? [127, 212, 193] : [255, 179, 71];
-      engineCol = P.flashT > 0.05 ? [255, 240, 190] : boosting ? [115, 230, 255] : [255, 160, 70];
+      engineCol = P.flashT > 0.05 ? [250, 226, 177] : boosting ? [153, 227, 230] : [168, 210, 223];
       const origin = V.sub(V.sub(pos3, V.scale(u, 1.6 * CRAFT_SC)), V.scale(t, 5 * CRAFT_SC));
       buildCraft(origin, t, u, r, accent);
       // the ghost of your best run on this fold, at the same clock time
@@ -2498,9 +2516,26 @@
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const w = Math.floor(window.innerWidth * dpr), h = Math.floor(window.innerHeight * dpr);
     const W = window.innerWidth, H = window.innerHeight;
+    const intro = document.getElementById('intro');
+    const showIntro = intro && !intro.hidden;
     if (renderer && rail) {
+      let eye = cam.pos, forward = cam.fwd, up = cam.up, shiftX = 0, shiftY = 0;
+      if (showIntro) {
+        // The idle sculpture has its own composition. Never feed this pose into the flight camera.
+        const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const pv = previewPose(0.14 + (still ? 0 : 0.04 * Math.sin(performance.now() / 9000)));
+        eye = V.add(previewC, V.scale(V.sub(pv.pos, previewC), W < 640 ? 1.20 : 1.65));
+        forward = V.norm(V.sub(previewC, eye)); up = pv.up;
+        shiftX = W < 640 ? 0 : 0.30; shiftY = W < 640 ? -0.48 : 0;
+        introPose = { eye, forward, up, shiftX, shiftY };
+      } else if (introBlend > 0 && introPose) {
+        const t = introBlend / 0.85, k = t * t * (3 - 2 * t);
+        eye = V.lerp(eye, introPose.eye, k); forward = V.norm(V.lerp(forward, introPose.forward, k));
+        up = V.norm(V.lerp(up, introPose.up, k)); shiftX = introPose.shiftX * k; shiftY = introPose.shiftY * k;
+      }
       projM = perspective(cam.fovDraw || cam.fov, w / h, 1, 4000);
-      viewM = lookAt(cam.pos, V.add(cam.pos, cam.fwd), cam.up);
+      projM[8] = shiftX; projM[9] = shiftY;
+      viewM = lookAt(eye, V.add(eye, forward), up);
       // The preview sits far enough out to frame the whole fold, well beyond the flight fog, so push the
       // fog back while it runs or the structure is invisible.
       const fogN = P.preview > 0 ? A(25) + previewR * 0.8 : A(25);
@@ -2509,47 +2544,51 @@
       // The two-pass fade doubles the work on the largest mesh in the scene, and on a phone that alone
       // cost enough frames to make the boost and the brake feel dead. Almost every frame has nothing
       // within the band, so ask first and draw once when the answer is no.
-      if (nearOn) {
-        renderer.draw(ribbonMesh, false, 1, false, false, nearSolidNow);
-        for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
-        if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
-        renderer.draw(ribbonMesh, false, 1, false, false, nearFadeNow);        // the near shell, faded out
-      } else {
-        renderer.draw(ribbonMesh);
-        for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
-        if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+      if (showIntro) renderer.draw(ribbonMesh);
+      else {
+        if (nearOn) {
+          renderer.draw(ribbonMesh, false, 1, false, false, nearSolidNow);
+          for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
+          if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+          renderer.draw(ribbonMesh, false, 1, false, false, nearFadeNow);        // the near shell, faded out
+        } else {
+          renderer.draw(ribbonMesh);
+          for (const c of chunks) renderer.draw(c.mesh, false, 1, false, false, SIDE_SOLID);
+          if (cofMesh) renderer.draw(cofMesh, false, 1, false, false, SIDE_SOLID);
+        }
+        // A silhouette of the craft, painted through whatever is in front of it. In a tight fold the ribbon
+        // comes between the lens and the ship and the player simply loses it. Drawn BEFORE the solid craft
+        // and with the same geometry, so wherever the ship is actually visible the solid pass covers it
+        // exactly and nothing looks doubled.
+        renderer.draw(gliderMesh, true, 0.45, false, true);
+        renderer.draw(gliderMesh);
+        renderer.draw(gliderGlowMesh, true);
+        renderer.draw(ghostMesh, false, 0.5);
+        // drawn through the geometry at low alpha: a ghost you cannot see round a bend tells you nothing,
+        // and it must never be mistaken for something you can hit
+        if (ghostPose && ghostCraftMesh) renderer.draw(ghostCraftMesh, true, 0.42, true, true);
+        renderer.draw(fxMesh, true, 1, true); // additive
+        // A cofactor sits buried in the fold, so the ribbon is always between it and the lens and the solid
+        // pass alone leaves it a dark smudge. A faint additive pass drawn through the geometry makes it glow
+        // from inside the protein — which is where it actually is, and reads as the thing the fold is built
+        // around rather than as another collectable stuck to the wall.
+        // The x-ray pass exists so a buried cofactor is not a dark smudge behind the ribbon. Up close there
+        // is nothing left to see through, and additive blending on top of the solid pass saturates the whole
+        // group to white — 1LDG's NADH sits 1.9 Å off the rail and filled a third of the screen with grey
+        // balls. Fade it out as it comes onto the lens, the same discipline the effect quads use.
+        if (cofMesh && cofs.length) {
+          let dn = 1e9;
+          for (const c of cofs) dn = Math.min(dn, V.len(V.sub(c.cen, cam.pos)));
+          const xa = 0.22 * clamp((dn / SC - 4.5) / 5.5, 0, 1);
+          if (xa > 0.02) renderer.draw(cofMesh, true, xa, true, true);
+        }
+        renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
       }
-      // A silhouette of the craft, painted through whatever is in front of it. In a tight fold the ribbon
-      // comes between the lens and the ship and the player simply loses it. Drawn BEFORE the solid craft
-      // and with the same geometry, so wherever the ship is actually visible the solid pass covers it
-      // exactly and nothing looks doubled.
-      renderer.draw(gliderMesh, true, 0.45, false, true);
-      renderer.draw(gliderMesh);
-      renderer.draw(gliderGlowMesh, true);
-      renderer.draw(ghostMesh, false, 0.5);
-      // drawn through the geometry at low alpha: a ghost you cannot see round a bend tells you nothing,
-      // and it must never be mistaken for something you can hit
-      if (ghostPose && ghostCraftMesh) renderer.draw(ghostCraftMesh, true, 0.42, true, true);
-      renderer.draw(fxMesh, true, 1, true); // additive
-      // A cofactor sits buried in the fold, so the ribbon is always between it and the lens and the solid
-      // pass alone leaves it a dark smudge. A faint additive pass drawn through the geometry makes it glow
-      // from inside the protein — which is where it actually is, and reads as the thing the fold is built
-      // around rather than as another collectable stuck to the wall.
-      // The x-ray pass exists so a buried cofactor is not a dark smudge behind the ribbon. Up close there
-      // is nothing left to see through, and additive blending on top of the solid pass saturates the whole
-      // group to white — 1LDG's NADH sits 1.9 Å off the rail and filled a third of the screen with grey
-      // balls. Fade it out as it comes onto the lens, the same discipline the effect quads use.
-      if (cofMesh && cofs.length) {
-        let dn = 1e9;
-        for (const c of cofs) dn = Math.min(dn, V.len(V.sub(c.cen, cam.pos)));
-        const xa = 0.45 * clamp((dn / SC - 4.5) / 5.5, 0, 1);
-        if (xa > 0.02) renderer.draw(cofMesh, true, xa, true, true);
-      }
-      renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
     }
     if (hudCanvas.width !== w || hudCanvas.height !== h) { hudCanvas.width = w; hudCanvas.height = h; }
     hud.setTransform(dpr, 0, 0, dpr, 0, 0);
     hud.clearRect(0, 0, w, h);
+    if (showIntro) return;
     const mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     const sans = 'system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif';
 
@@ -2593,101 +2632,70 @@
     pops.forEach((q, qi) => {
       const a = 1 - q.age / 1.1;
       hud.globalAlpha = Math.min(1, a * 1.5); hud.fillStyle = q.col; hud.textAlign = 'center'; hud.textBaseline = 'middle';
-      hud.font = `600 ${(compact0 ? 12 : 15) + (compact0 ? 4 : 6) * Math.min(1, q.age * 4)}px ${mono}`;
+      hud.font = `500 ${compact0 ? 14 : 17}px ${sans}`;
       // A pop is centred on a point in the world, so on a narrow phone a long one ("sheet repaired +500")
       // runs off the edge and is read as "f repaired +500". Keep the whole string on screen.
       const half = hud.measureText(q.text).width / 2 + 6;
       const px = clamp(anchor[0] + q.dx, half, Math.max(half, W - half));
-      hud.fillText(q.text, px, anchor[1] - 50 - 45 * q.age - 22 * (pops.length - 1 - qi));
+      hud.fillText(q.text, px, anchor[1] - 42 - 14 * q.age);
     });
     hud.globalAlpha = 1; hud.textBaseline = 'top';
 
-    // compact HUD on phones / narrow windows: score, one status line, title, bar
+    // A single hierarchy across phone and desktop: score + combo, fold identity, progress map.
     const compact = TOUCH || W < 640;
-    const M = compact ? 14 : 20;
-    // top left: score, time, speed, combo
+    const M = compact ? 18 : 28;
+    const veil = hud.createLinearGradient(0, 0, 0, 130);
+    veil.addColorStop(0, 'rgba(5,8,18,0.50)'); veil.addColorStop(1, 'rgba(5,8,18,0)');
+    hud.fillStyle = veil; hud.fillRect(0, 0, W, 130);
     hud.fillStyle = TXT; hud.textAlign = 'left';
-    hud.font = `600 ${compact ? 28 : 40}px ${mono}`;
-    hud.fillText(String(P.score), M, compact ? 10 : 14);
-    hud.font = `${compact ? 11 : 13}px ${mono}`;
-    if (compact) {
-      hud.fillText(`${P.fixed}/${totalHelix} fixed · ${P.missed} missed`, M, 44);
-    } else {
-      hud.fillText(`${P.t.toFixed(1)} s · ${P.speed.toFixed(0)} Å/s`, M, 62);
-      hud.fillText(`FIXED ${P.fixed} / ${totalHelix} · MISSED ${P.missed} · BEST ${best.score === null ? '—' : best.score}`, M, 82);
-    }
-    const comboY = compact ? 62 : 104;
+    hud.font = `500 ${compact ? 28 : 34}px ${sans}`;
+    hud.fillText(P.score.toLocaleString('en-US'), M, 14);
+    hud.font = `${compact ? 11 : 12}px ${sans}`;
+    hud.fillStyle = 'rgb(170,184,198)';
+    hud.fillText(`${P.fixed} / ${totalHelix} restored`, M, compact ? 49 : 57);
+    const comboY = compact ? 70 : 80;
     if (P.combo >= 2 && !P.done) {
-      const cb = 1 + 0.35 * P.comboPop * P.comboPop;
-      hud.fillStyle = 'rgb(190,140,255)'; hud.font = `600 ${Math.round((compact ? 16 : 22) * cb)}px ${mono}`;
-      hud.fillText(P.combo >= 5 ? `×${1 + Math.floor(P.combo / 5)}  combo ${P.combo}` : `combo ${P.combo}`, M, comboY);
-      if (!compact) {
-        const nxt = 5 - (P.combo % 5);
-        hud.font = `11px ${mono}`; hud.fillStyle = 'rgba(190,140,255,0.7)';
-        hud.fillText(`${nxt} more for ×${2 + Math.floor(P.combo / 5)}`, M, 130);
-      }
+      hud.fillStyle = ELEM_COL.H; hud.font = `500 ${compact ? 13 : 15}px ${sans}`;
+      hud.fillText(`×${1 + Math.floor(P.combo / 5)}  ·  ${P.combo} in a row`, M, comboY);
     }
-    // Slipstream: a bar that fills while you ride the corridor edge. Without a readout the speed gain is
-    // invisible — the craft simply feels faster for no stated reason, which reads as inconsistency.
     if (P.groove > 0.02 && !P.done && !autopilot) {
-      const gy = P.combo >= 2 ? (compact ? 92 : 162) : comboY;
-      const bw = compact ? 72 : 104, bh = compact ? 4 : 5;
-      const hot = P.groove > 0.85;
-      hud.fillStyle = 'rgba(127,212,193,0.22)'; hud.fillRect(M, gy - bh - 2, bw, bh);
-      hud.fillStyle = hot ? 'rgb(180,255,235)' : 'rgb(127,212,193)';
-      hud.fillRect(M, gy - bh - 2, bw * P.groove, bh);
-      hud.font = `600 ${compact ? 10 : 12}px ${mono}`;
-      hud.fillText(hot ? 'SLIPSTREAM' : 'slipstream', M + bw + 8, gy + 1);
+      const gy = comboY + (P.combo >= 2 ? 30 : 0), bw = compact ? 65 : 90;
+      hud.fillStyle = 'rgba(142,199,182,0.18)'; hud.fillRect(M, gy, bw, 3);
+      hud.fillStyle = ELEM_COL.E; hud.fillRect(M, gy, bw * P.groove, 3);
+      hud.font = `11px ${sans}`; hud.fillText('Slipstream', M, gy + 9);
     }
-    if (ghostPose && !P.done) {
-      const d = (P.s - ghostPose.s) / SC;
-      if (Math.abs(d) > 0.5) {
-        const ahead = d > 0;
-        hud.fillStyle = ahead ? 'rgb(127,212,193)' : 'rgb(220,130,130)';
-        hud.font = `600 ${compact ? 11 : 13}px ${mono}`; hud.textAlign = 'right';
-        hud.fillText(`${ahead ? '+' : ''}${d.toFixed(0)} Å vs best`, W - M, compact ? 82 : 86);
-        hud.textAlign = 'left';
-      }
+    if (autopilot) {
+      hud.fillStyle = 'rgb(170,184,198)'; hud.font = `11px ${sans}`;
+      hud.fillText('Autopilot', M, comboY + (P.combo >= 2 ? 24 : 0));
     }
-    if (autopilot) { hud.fillStyle = ELEM_COL.H; hud.font = `${compact ? 11 : 13}px ${mono}`; hud.fillText(compact ? 'AUTOPILOT' : 'AUTOPILOT (A)', M, P.combo >= 2 ? (compact ? 110 : 180) : comboY + 18); }
-    if (rail && !P.done && (rail.nodeAt(P.s).trench || 0) > 0.6) {
-      hud.fillStyle = P.ice ? 'rgb(150,220,255)' : ELEM_COL.E; hud.font = `600 ${compact ? 11 : 13}px ${mono}`; hud.textAlign = 'right';
-      hud.fillText(P.ice ? 'TRENCH RUN · glycine, low grip' : 'TRENCH RUN · left / right', W - M, compact ? 64 : 64); hud.textAlign = 'left';
-    }
-
-    // top right
-    hud.fillStyle = TXT; hud.textAlign = 'right';
-    hud.font = `500 ${compact ? 12 : 16}px ${sans}`;
-    hud.fillText((fold ? fold.title : '') + (P.runFolds > 1 ? `  · fold ${P.runFolds}` : ''), W - M, compact ? 12 : 18);
+    hud.textAlign = 'right'; hud.fillStyle = TXT;
+    hud.font = `500 ${compact ? 12 : 15}px ${sans}`;
+    let foldLabel = fold ? fold.title : '';
+    const labelWidth = W * (compact ? 0.54 : 0.50);
+    const fullLabel = foldLabel;
+    while (foldLabel.length > 4 && hud.measureText(foldLabel).width > labelWidth) foldLabel = foldLabel.slice(0, -1);
+    hud.fillText(foldLabel === fullLabel ? foldLabel : foldLabel.trimEnd() + '…', W - M, 19);
     if (rail) {
       const node = rail.nodeAt(P.s);
       const ri = clamp(Math.round(node.res), 0, seq.length - 1);
-      hud.font = `${compact ? 10 : 13}px ${mono}`;
+      hud.font = `${compact ? 10 : 12}px ${sans}`;
       hud.fillStyle = ELEM_COL[node.elem] || TXT;
-      hud.fillText(`${isPdb(fold) ? pdbCode(fold) + ' · ' : ''}${names[ri]} ${nums[ri]} · ${ELEM_NAME[node.elem] || 'coil'}`, W - M, compact ? 30 : 42);
-      hud.fillStyle = TXT;
-    }
-
-    // fold minimap, bottom right above the bar
-    const MS = compact ? 84 : 120;
-    // On a phone the bottom corners belong to the thumbs: brake bottom-left, boost bottom-right. Lift the
-    // minimap clear of the boost button rather than putting the button somewhere a thumb cannot reach.
-    const mmx = W - M - MS, mmy = H - (compact ? 14 + 78 : 34) - MS;
-    drawMinimap(mmx, mmy, MS);
-    // colour legend (desktop only), to the left of the minimap
-    if (rail && scheme === 'clustal' && !compact) {
-      hud.font = `10px ${mono}`; hud.textAlign = 'left'; hud.textBaseline = 'top';
-      let lx = W - 20, ly = H - 52;
-      const items = CLUSTAL_GROUPS.map(([aas, h]) => [aas.split('').join(''), h]);
-      let total = 0; for (const [t] of items) total += 14 + hud.measureText(t).width + 12;
-      lx = W - 20 - MS - 18 - total;
-      for (const [t, h] of items) {
-        hud.fillStyle = h; hud.fillRect(lx, ly + 1, 9, 9);
-        hud.fillStyle = 'rgba(219,230,255,0.7)'; hud.fillText(t, lx + 14, ly);
-        lx += 14 + hud.measureText(t).width + 12;
+      hud.fillText(`${isPdb(fold) ? pdbCode(fold) + '  ·  ' : ''}${ELEM_NAME[node.elem] || 'coil'}  ·  ${nums[ri]}`, W - M, 39);
+      if ((node.trench || 0) > 0.6) {
+        hud.fillStyle = ELEM_COL.E;
+        hud.fillText(P.ice ? 'Trench · low grip' : 'Trench · left / right', W - M, 57);
+      } else if (ghostPose && !P.done) {
+        const d = (P.s - ghostPose.s) / SC;
+        if (Math.abs(d) > 0.5) {
+          hud.fillStyle = d > 0 ? ELEM_COL.E : 'rgb(219,158,149)';
+          hud.fillText(`${d > 0 ? '+' : ''}${d.toFixed(0)} Å vs best`, W - M, 57);
+        }
       }
-      hud.fillStyle = 'rgba(219,230,255,0.45)'; hud.fillText('Clustal X colours · C to switch', W - 20 - MS - 18 - total, ly - 14);
     }
+    const MS = compact ? 80 : 104;
+    const mmx = W - M - MS, mmy = H - (compact ? 96 : 32) - MS;
+    drawMinimap(mmx, mmy, MS);
+    hud.textAlign = 'left';
     // lunge target dot
     if (laneMode && rail && !P.done && lunge.active) {
       const nd = rail.nodeAt(P.s + A(1.0));
@@ -2705,10 +2713,10 @@
       const cxI = W / 2, cyI = compact ? H * 0.22 : H * 0.26, r = (compact ? 70 : 110);
       const px = cxI + dx * r, py = cyI - dy * r;
       hud.save(); hud.translate(px, py); hud.rotate(Math.atan2(-dy, dx));
-      hud.globalAlpha = 0.25 + 0.55 * k;
-      hud.strokeStyle = k > 0.6 ? 'rgb(255,179,71)' : 'rgb(219,230,255)'; hud.lineWidth = 2 + 2 * k; hud.lineCap = 'round'; hud.lineJoin = 'round';
-      const sz = 10 + 12 * k;
-      for (let c = 0; c < 1 + Math.round(k * 2); c++) { hud.beginPath(); hud.moveTo(-sz + c * 9, -sz); hud.lineTo(c * 9, 0); hud.lineTo(-sz + c * 9, sz); hud.stroke(); }
+      hud.globalAlpha = 0.38 + 0.5 * k;
+      hud.strokeStyle = k > 0.6 ? ELEM_COL.H : TXT; hud.lineWidth = 2 + k; hud.lineCap = 'round'; hud.lineJoin = 'round';
+      const sz = 9 + 6 * k;
+      hud.beginPath(); hud.moveTo(-sz * 0.65, -sz); hud.lineTo(sz * 0.35, 0); hud.lineTo(-sz * 0.65, sz); hud.stroke();
       hud.restore(); hud.globalAlpha = 1;
     }
     // fold title card at the start of a fold: what you are flying, and who solved it
@@ -2778,7 +2786,7 @@
       // which sits dead centre at the C-terminus, dark and ship-sized — showed straight through the middle
       // rows and cut the text in half. Opaque enough to read against anything, still not a solid slab.
       hud.fillStyle = 'rgba(5,8,18,0.94)'; hud.fillRect(cx, cy, cw, ch);
-      hud.strokeStyle = 'rgba(219,230,255,0.25)'; hud.lineWidth = 1; hud.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1);
+      hud.strokeStyle = 'rgba(219,230,255,0.12)'; hud.lineWidth = 1; hud.strokeRect(cx + 0.5, cy + 0.5, cw - 1, ch - 1);
       hud.textAlign = 'left'; hud.fillStyle = TXT; hud.textBaseline = 'top';
       // Finishing all ten in one run is the end of the campaign and should say so. runFolds counts the
       // folds carried through on this run, so it only reads 10 if you never broke the chain.
@@ -2790,7 +2798,7 @@
       let ttl = fold.title; const maxW = cw - 48 - (compact ? 60 : 90);
       while (ttl.length > 4 && hud.measureText(ttl + '…').width > maxW) ttl = ttl.slice(0, -1);
       hud.fillText(ttl === fold.title ? ttl : ttl.trim() + '…', cx + 24, cy + 40);
-      hud.textAlign = 'right'; hud.font = `600 ${compact ? 56 : 72}px ${mono}`;
+      hud.textAlign = 'right'; hud.font = `400 ${compact ? 56 : 72}px ${sans}`;
       hud.fillStyle = P.rank === 'S' ? 'rgb(190,140,255)' : P.rank === 'A' ? ELEM_COL.H : P.rank === 'B' ? ELEM_COL.E : TXT;
       hud.fillText(P.rank, cx + cw - 24, cy + 14);
       let y = cy + 96;
@@ -2810,7 +2818,6 @@
 
     // footer (desktop only)
     hud.textAlign = 'center'; hud.font = `11px ${sans}`; hud.fillStyle = 'rgba(219,230,255,0.45)';
-    if (!compact) hud.fillText(TOUCH ? 'drag anywhere to steer · second finger to boost' : 'arrows / WASD move · Shift boost · Ctrl brake · A autopilot · C colours · N next fold · R restart · drop a .pdb or .cif anywhere', W / 2, H - 24);
     if (touch.id !== null && !laneMode) { // virtual stick
       hud.strokeStyle = 'rgba(219,230,255,0.35)'; hud.lineWidth = 1.5;
       hud.beginPath(); hud.arc(touch.x0, touch.y0, 60, 0, Math.PI * 2); hud.stroke();

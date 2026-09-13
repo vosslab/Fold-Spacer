@@ -5,8 +5,41 @@
   'use strict';
   const SC = 7;
   const V = root.V || require('./rail.js').V;
-  const COL = { H: [255 / 255, 179 / 255, 71 / 255], E: [127 / 255, 212 / 255, 193 / 255], C: [150 / 255, 158 / 255, 190 / 255] };
-  const RING = 10, SUB = 5;
+  const COL = { H: [0.92, 0.70, 0.38], E: [0.48, 0.76, 0.69], C: [0.56, 0.61, 0.70] };
+
+  // A bounded, two-sided approximation to occlusion, baked once per structure. Nearby Cα atoms
+  // contribute a directional density tensor; excluding sequence neighbours avoids shading the
+  // backbone by its own sampling density. The squared normal term also works inside a helix.
+  function occlusionField(ca) {
+    const radius = 9, cells = new Map(), field = [], n = ca.length / 3;
+    const key = (x, y, z) => x + ',' + y + ',' + z;
+    for (let i = 0; i < n; i++) {
+      const k = key(Math.floor(ca[i * 3] / radius), Math.floor(ca[i * 3 + 1] / radius), Math.floor(ca[i * 3 + 2] / radius));
+      if (!cells.has(k)) cells.set(k, []);
+      cells.get(k).push(i);
+    }
+    for (let i = 0; i < n; i++) {
+      const x = ca[i * 3], y = ca[i * 3 + 1], z = ca[i * 3 + 2];
+      const cx = Math.floor(x / radius), cy = Math.floor(y / radius), cz = Math.floor(z / radius);
+      const q = [0, 0, 0, 0, 0, 0, 0];
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let c = -1; c <= 1; c++) {
+        const bucket = cells.get(key(cx + a, cy + b, cz + c));
+        if (!bucket) continue;
+        for (const j of bucket) {
+          if (Math.abs(i - j) <= 3) continue;
+          const dx = ca[j * 3] - x, dy = ca[j * 3 + 1] - y, dz = ca[j * 3 + 2] - z;
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 < 0.01 || d2 >= radius * radius) continue;
+          const w = Math.pow(1 - d2 / (radius * radius), 2), s = w / d2;
+          q[0] += w;
+          q[1] += dx * dx * s; q[2] += dy * dy * s; q[3] += dz * dz * s;
+          q[4] += dx * dy * s; q[5] += dx * dz * s; q[6] += dy * dz * s;
+        }
+      }
+      field.push(q);
+    }
+    return field;
+  }
 
   function catmull(p0, p1, p2, p3, t) {
     const t2 = t * t, t3 = t2 * t, out = [0, 0, 0];
@@ -24,8 +57,14 @@
     return [0.6, 0.6];
   }
 
-  function buildRibbon(ca, ss, axis) {
+  function buildRibbon(ca, ss, axis, detail) {
     const n = ca.length / 3;
+    const requestedSub = detail && detail.subdivisions || 8;
+    // Keep larger imports on the previous geometry budget. The finer campaign mesh must not turn
+    // a previously valid 16-bit mesh into an overflowing one on devices without the index extension.
+    const detailed = (n - 1) * 12 * requestedSub + 12 <= 65535;
+    const RING = detailed ? 12 : 10, SUB = detailed ? requestedSub : 5;
+    const occ = occlusionField(ca);
     const P = [];
     for (let i = 0; i < n; i++) P.push([ca[3 * i] * SC, ca[3 * i + 1] * SC, ca[3 * i + 2] * SC]);
     const at = (i) => P[Math.max(0, Math.min(n - 1, i))];
@@ -53,7 +92,7 @@
     const prof = [];
     for (let i = 0; i < n; i++) prof.push(profile(ss[i]));
 
-    const pos = [], nrm = [], col = [], idx = [], idxE = [];
+    const pos = [], nrm = [], col = [], ao = [], idx = [], idxE = [];
     let ring = 0;
     const segs = n - 1;
     for (let i = 0; i < segs; i++) {
@@ -73,14 +112,20 @@
         if (arrow) { w = t < 0.15 ? STRAND_W + (STRAND_ARROW - STRAND_W) * (t / 0.15) : STRAND_ARROW * (1 - (t - 0.15) / 0.85) + 0.05; h = 0.2 + (prof[i + 1][1] - 0.2) * t; }
         else { w = prof[i][0] + (prof[i + 1][0] - prof[i][0]) * t; h = prof[i][1] + (prof[i + 1][1] - prof[i][1]) * t; }
         w *= SC; h *= SC;
-        const c = COL[t < 0.5 ? e0 : e1] || COL.C;
+        const blend = t * t * (3 - 2 * t);
+        const c = V.lerp(COL[e0] || COL.C, COL[e1] || COL.C, blend);
+        const q = occ[i].map((v, j) => v + (occ[i + 1][j] - v) * blend);
         for (let r = 0; r < RING; r++) {
           const a = (r / RING) * Math.PI * 2, ca_ = Math.cos(a), sa = Math.sin(a);
           // elliptical cross-section: bn is the wide axis, nv the thin axis
           pos.push(p[0] + bn[0] * w * ca_ + nv[0] * h * sa, p[1] + bn[1] * w * ca_ + nv[1] * h * sa, p[2] + bn[2] * w * ca_ + nv[2] * h * sa);
           const nn = V.norm([bn[0] * ca_ / w + nv[0] * sa / h, bn[1] * ca_ / w + nv[1] * sa / h, bn[2] * ca_ / w + nv[2] * sa / h]);
           nrm.push(nn[0], nn[1], nn[2]);
-          col.push(c[0], c[1], c[2]);
+          const x = nn[0], y = nn[1], z = nn[2];
+          const density = 0.18 * q[0] + 0.82 * (q[1] * x * x + q[2] * y * y + q[3] * z * z + 2 * (q[4] * x * y + q[5] * x * z + q[6] * y * z));
+          const shade = 1 - 0.24 * (1 - Math.exp(-0.20 * density));
+          ao.push(shade);
+          col.push(c[0] * shade, c[1] * shade, c[2] * shade);
         }
         if (ring > 0) {
           // A β-sheet is a slab you fly OVER and never inside, so its back faces are only ever visible
@@ -99,7 +144,8 @@
       }
     }
     return { pos: new Float32Array(pos), nrm: new Float32Array(nrm), col: new Float32Array(col),
-             idx: new Uint32Array(idx), idxCull: new Uint32Array(idxE) };
+             idx: new Uint32Array(idx), idxCull: new Uint32Array(idxE),
+             ao: new Float32Array(ao), ringSize: RING, subdivisions: SUB };
   }
 
   const api = { buildRibbon, COL };

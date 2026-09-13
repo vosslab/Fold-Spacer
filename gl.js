@@ -21,11 +21,14 @@
       if (!gl_FrontFacing) n = -n;
       vec3 v = normalize(-vPos);
       if (dot(n, v) < 0.0) n = -n;
-      float wrap = 0.6;
+      float wrap = 0.5;
       float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
       vec3 h = normalize(uLight + v);
-      float spec = pow(max(0.0, dot(n, h)), 40.0) * 0.25;
-      vec3 c = vCol * (uAmbient + diff * (1.0 - uAmbient)) + spec;
+      // Fixed world key + broad camera fill: contours stay readable inside the fold. A restrained
+      // satin highlight reveals curvature without turning an atom or the ribbon's edge pure white.
+      float fill = max(0.0, dot(n, v));
+      float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
+      vec3 c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
       c = mix(c, vCol, uUnlit);
       float d = length(vPos);
       // Geometry right on the lens has to go: a helix ribbon is 0.4 A thick, so a surface a fraction of
@@ -120,7 +123,7 @@
       const a = alpha === undefined ? 1 : alpha;
       gl.uniform1f(U.uAlpha, a);
       if (noDepth) gl.disable(gl.DEPTH_TEST);
-      if (additive) { gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false); } // glows, never darkens
+      if (additive) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false); } // honour distance-faded x-ray / ghost alpha
       else if (a < 1) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
       const attr = (loc, b) => { gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 3, gl.FLOAT, false, 0, 0); };
       attr(A.pos, m.vPos); attr(A.nrm, m.vNrm); attr(A.col, m.vCol);
@@ -154,7 +157,7 @@
       gl.uniform3f(U.uLight, l[0] / ll, l[1] / ll, l[2] / ll);
       gl.uniform3f(U.uFog, fog[0], fog[1], fog[2]);
       gl.uniform2f(U.uFogRange, fogNear, fogFar);
-      gl.uniform1f(U.uAmbient, 0.28);
+      gl.uniform1f(U.uAmbient, 0.34);
       gl.uniform1f(U.uUnlit, 0);
       gl.uniform1f(U.uAlpha, 1);
       gl.uniform3f(U.uNear, 0, 0, 0);

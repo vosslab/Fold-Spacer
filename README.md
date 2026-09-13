@@ -8,6 +8,10 @@ C-terminus of ten structures from the Protein Data Bank, repairing the fold as y
 No install, no server, no build step to try it — it is one self-contained HTML file that
 runs on a phone or a desktop browser.
 
+Choose **Begin flight** to start. **How to fly & the science** holds the controls, molecular
+colour key, and credits; the same help is available from the ⋯ menu during a run and pauses
+the flight while you read. The page uses system fonts and needs no external font downloads.
+
 ## The game
 
 Inside an **α-helix** you fly down the axis of the coil. Some side chains start out
@@ -31,7 +35,7 @@ Secondary structure is computed from Cα geometry, not read from the file.
 
 |  | keyboard | phone |
 |---|---|---|
-| steer | arrows or `WASD` | drag from wherever your finger lands |
+| steer | arrow keys | drag from wherever your finger lands |
 | boost | `Shift` or `Space` | boost button, bottom right (or a second finger) |
 | brake | `Ctrl` — turns harder while slowing | brake button, bottom left |
 | barrel roll | double-tap `←` or `→` | a hard sideways flick |
@@ -65,6 +69,7 @@ python3 tools/fairness.py              # every side chain reachable at the speed
 node tools/phone_test.js               # real synthesised touch, phone viewport
 node tools/nogl_test.js                # a browser without WebGL says why
 bash tools/chain_eval.sh               # the whole campaign in one run
+node tools/visual_test.js /tmp/flyer-review  # UI, renderer fallback, screenshots
 ```
 
 These need a headless Chromium (`npx playwright install chromium-headless-shell`).
