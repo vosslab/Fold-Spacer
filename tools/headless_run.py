@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Fold Flyer headless: drive frame() at 60 Hz under virtual time, read the JSON status from the title.
+"""Run Fold Spacer headless: drive frame() at 60 Hz under virtual time, read the JSON status from the title.
 usage: headless_run.py [--fold N] [--seconds S] [--autopilot] [--keys 'left:0.5-2.0,boost:1-3'] [--shot out.png --shot-at T]
 """
 import argparse, json, os, subprocess, sys, tempfile, glob
@@ -37,7 +37,7 @@ for item in filter(None, a.keys.split(',')):
 # screenshot describes a page no player ever sees. Build from the template, exactly as bundle.py does.
 html = open(os.path.join(ROOT, 'tools', 'bundle_template.html')).read()
 inline = ''.join(open(os.path.join(ROOT, js)).read() + '\n'
-                 for js in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'game.js'])
+                 for js in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'music.js', 'game.js'])
 shot_frame = int(round((a.shot_at if a.shot_at >= 0 else a.seconds) * 60))
 total_frames = int(round(a.seconds * 60))
 # All of this lands inside the template's single <script>, so it must be plain JS with no script tags.

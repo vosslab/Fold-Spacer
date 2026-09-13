@@ -12,7 +12,7 @@ const ROOT = path.dirname(__dirname);
 const b = spawnSync('python3', [path.join(ROOT, 'tools', 'bundle.py')], { cwd: ROOT, encoding: 'utf8' });
 if (b.status !== 0) { console.error('bundle failed:', b.stderr); process.exit(1); }
 
-const src = fs.readFileSync(path.join(ROOT, 'dist', 'foldflyer.html'), 'utf8');
+const src = fs.readFileSync(path.join(ROOT, 'dist', 'foldspacer.html'), 'utf8');
 const stub = "<script>(function(){var g=HTMLCanvasElement.prototype.getContext;"
   + "HTMLCanvasElement.prototype.getContext=function(t){if(String(t).indexOf('webgl')>=0)return null;"
   + "return g.apply(this,arguments);};})();</script>";

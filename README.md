@@ -1,4 +1,4 @@
-# Fold Flyer
+# Fold Spacer
 
 A browser tunnel-runner along a real protein backbone. Fly a glider from the N- to the
 C-terminus of ten structures from the Protein Data Bank, repairing the fold as you go.
@@ -47,6 +47,13 @@ Secondary structure is computed from Cα geometry, not read from the file.
 Ride the edge of the corridor and the **slipstream** builds speed. A dead-centre hit
 surges you forward. A barrel roll shrugs off a wall while you are inverted.
 
+**Music follows your flow.** A quiet, original 78-BPM score adds bass, melody and high
+accents as you collect cleanly and ride the slipstream. A missed streak gently takes
+layers away. Heme, nucleotide and metal cofactors have distinct musical invitations;
+claiming one resolves the phrase and sends a soft colour ripple through nearby ribbon.
+Everything is synthesised locally—no audio downloads. `M` or Sound controls music and
+effects together; leaving the window or opening help silences both.
+
 **Drop a `.pdb` or `.cif` file anywhere on the page** to fly your own structure.
 
 ## Build
@@ -60,6 +67,9 @@ node tools/make_folds.js > folds.js   # rebuild the baked campaign from data/
 page — it loads the separate `.js` files and has no intro card, so it is not what a
 visitor should get.
 
+The downloadable standalone is `dist/FoldSpacer.html`; `dist/foldspacer.html` is the
+fragment build for embedding. The welcome screen also explains how to drop in your own structure.
+
 ### Checks
 
 ```sh
@@ -70,6 +80,7 @@ node tools/phone_test.js               # real synthesised touch, phone viewport
 node tools/nogl_test.js                # a browser without WebGL says why
 bash tools/chain_eval.sh               # the whole campaign in one run
 node tools/visual_test.js /tmp/flyer-review  # UI, renderer fallback, screenshots
+FLYER_AUDIO=1 node tools/visual_test.js /tmp/flyer-audio  # audio lifecycle, cofactor captures, WAV preview
 ```
 
 These need a headless Chromium (`npx playwright install chromium-headless-shell`).
@@ -85,6 +96,7 @@ These need a headless Chromium (`npx playwright install chromium-headless-shell`
 | `gl.js` | small WebGL renderer |
 | `folds.js` | the ten campaign structures, baked to integers (generated) |
 | `game.js` | everything else: flight, collection, camera, HUD, scoring |
+| `music.js` | generative score, harmonised cues, shared audio lifecycle and bounded voice pool |
 | `tools/` | build, and the checks above |
 | `PLAYTEST.md` | the engineering log — every measurement, and what was ruled out |
 | `RENDERING.md` | handover for anyone improving the visuals: contracts, dead ends, where the wins are |

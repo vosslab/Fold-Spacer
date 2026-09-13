@@ -1,4 +1,4 @@
-# Artifact build output: dist/foldflyer.html is a fragment with no <html> wrapper and is
+# Artifact build output: dist/foldspacer.html is a fragment with no <html> wrapper and is
 # only meaningful inside the publishing host. docs/index.html is the page that ships.
 dist/
 

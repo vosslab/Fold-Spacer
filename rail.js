@@ -1,4 +1,4 @@
-// Fold Flyer — the rail: de-coiled, offset, subdivided backbone with frames.
+// Fold Spacer — the rail: de-coiled, offset, subdivided backbone with frames.
 // buildRail(ca, hw, ss) -> { nodes, length, nodeAt(s), resNode(i) }
 // ca: flat Å coordinates; hw: helix weight per residue; ss: element string.
 (function (root) {

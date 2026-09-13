@@ -288,3 +288,22 @@ The first pass now combines AO, lighting, a coordinated palette, craft materials
 hierarchy. Review it in motion on a physical phone before raising tessellation or adding
 effects. Keep comparing 1LDG at residues 34 and 72 and 1M56 at 120, along with the bundle's
 helix interior and 1QJ8's sheet. The underlying camera/culling contracts remain the priority.
+
+### Cofactor moments and music (2026-09-14)
+
+Cofactor pips now appear 42 Å ahead, alongside the musical invitation, rather than 21 Å.
+The existing eight-pip mesh/pass is reused. A small HUD label names the approaching or
+claimed cofactor; it is not a full-screen flash. Claiming sends a 32%-strength, cofactor-
+coloured ripple through at most 28 ribbon residues: spatial neighbours within 10 Å plus
+a few residues along the next 18 Å of flight. These indices are computed once on load.
+`updateGlows` now supports per-glow colours and delayed starts, still respecting baked AO
+and restoring the base colours after fading. Reduced-motion removes the travelling delay.
+No new draw pass, geometry, shader or camera behaviour is introduced.
+
+`music.js` synthesises the score and cues, with an audio-clock lookahead and at most
+32 live/scheduled voices. No audio assets or fetches. It is included by both bundle.py
+and headless_run.py, and by the bare development page. `FLYER_AUDIO=1 node tools/visual_test.js`
+checks lifecycle, real oracle-flown heme/NADH/copper moments, and an offline-rendered
+24-second WAV (flow builds, a miss, cofactor phrases, finish, mute). It asserts finite,
+unclipped audio, layer progression, voice cleanup and silence after mute. These automated
+checks do not replace listening on headphones and a physical phone.

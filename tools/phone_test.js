@@ -1,6 +1,6 @@
 // Phone-shaped end-to-end test: headless Chromium with mobile emulation and real synthesized touch
 // input via the DevTools protocol. Exercises tap-to-start, lane swipes, hold-to-boost and the menu.
-// usage: node tools/phone_test.js [path/to/FoldFlyer.html] [--shot out.png]
+// usage: node tools/phone_test.js [path/to/FoldSpacer.html] [--shot out.png]
 const { spawn } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
 const ROOT = path.dirname(__dirname);
@@ -13,13 +13,13 @@ const shot = shotIx >= 0 ? args.splice(shotIx, 2)[1] : null;
 // the Artifact tool supplies — a different file from the standalone, and one nothing had ever opened.
 const wantArtifact = args.indexOf('--artifact') >= 0;
 if (wantArtifact) args.splice(args.indexOf('--artifact'), 1);
-let page = args[0] || path.join(ROOT, 'dist', 'FoldFlyer.html');
+let page = args[0] || path.join(ROOT, 'dist', 'FoldSpacer.html');
 if (!args[0]) {
   const r = require('child_process').spawnSync('python3', [path.join(ROOT, 'tools', 'bundle.py')], { cwd: ROOT, encoding: 'utf8' });
   if (r.status !== 0) { console.error('bundle failed:\n' + (r.stderr || r.stdout)); process.exit(1); }
   console.log('bundled current source ·', (r.stdout || '').trim());
   if (wantArtifact) {
-    const frag = fs.readFileSync(path.join(ROOT, 'dist', 'foldflyer.html'), 'utf8');
+    const frag = fs.readFileSync(path.join(ROOT, 'dist', 'foldspacer.html'), 'utf8');
     const head = '<!doctype html>\n<html>\n<head>\n<meta charset="utf-8">\n'
       + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
       + '<style>:root{color-scheme:light}body{margin:0;background:#faf9f7;font:14px system-ui,sans-serif}'

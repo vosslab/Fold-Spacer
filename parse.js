@@ -1,4 +1,4 @@
-// Fold Flyer — structure parser (PDB + mmCIF, Cα only, first model).
+// Fold Spacer — structure parser (PDB + mmCIF, Cα only, first model).
 // Works in the browser (global `parseStructure`) and in node (module.exports).
 (function (root) {
   'use strict';

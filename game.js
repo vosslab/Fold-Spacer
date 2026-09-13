@@ -1,4 +1,4 @@
-// Fold Flyer — game loop: blocks, player physics, camera, assist/autopilot, scoring, effects, HUD.
+// Fold Spacer — game loop: blocks, player physics, camera, assist/autopilot, scoring, effects, HUD.
 (function () {
   'use strict';
   const SC = 7;                       // world units per Å
@@ -156,17 +156,8 @@
   }
 
   // ---------------------------------------------------------------- sound
-  let actx = null, drone = null;
-  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
-  const DRONE_ROOT = { H: 110, E: 130.81, C: 82.41 };
-  function audio() {
-    if (HEADLESS) return null;
-    try {
-      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-      if (actx.state === 'suspended') actx.resume();
-      return actx;
-    } catch (e) { return null; }
-  }
+  const sound = createFlightAudio();
+  let soundFocused = true;
   // Muting. This is a game people open from a link — at work, on a train, next to someone asleep — and
   // a page that starts making noise with no way to stop it gets closed. Remembered across sessions.
   let muted = false;
@@ -174,42 +165,20 @@
   function setMuted(on) {
     muted = !!on;
     try { localStorage.setItem('flyer.muted', muted ? '1' : '0'); } catch (e) { /* no storage */ }
-    if (drone && actx) drone.g.gain.setTargetAtTime(muted ? 0 : 0.03, actx.currentTime, 0.1);
+    syncSound();
     flash = { text: muted ? 'sound off' : 'sound on', t: 1.6 };
   }
   window.flyerMuted = () => muted;
-  function beep(freq, dur, type, gain, slide) {
-    if (muted) return;
-    const ac = audio(); if (!ac) return;
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = type || 'sine'; o.frequency.value = freq;
-    if (slide) o.frequency.exponentialRampToValueAtTime(slide, ac.currentTime + dur);
-    g.gain.value = gain || 0.05;
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + dur);
-  }
-  function noteForFlip() {
-    const semis = PENTA[Math.min(PENTA.length - 1, P.helixNote)];
-    beep(220 * Math.pow(2, semis / 12), 0.35, 'triangle', 0.045);
-    beep(220 * Math.pow(2, semis / 12) * 2, 0.18, 'sine', 0.015);
-  }
-  function ensureDrone() {
-    const ac = audio(); if (!ac || drone) return;
-    const g = ac.createGain(); g.gain.value = 0.0; g.connect(ac.destination);
-    const o1 = ac.createOscillator(), o2 = ac.createOscillator();
-    o1.type = 'sine'; o2.type = 'triangle'; o1.connect(g); o2.connect(g); o1.start(); o2.start();
-    drone = { g, o1, o2, root: 82.41 };
-    g.gain.linearRampToValueAtTime(muted ? 0 : 0.03, ac.currentTime + 1.5);
-  }
-  function droneTo(elem, speed) {
-    if (!drone || !actx) return;
-    const root = DRONE_ROOT[elem] || DRONE_ROOT.C;
-    if (root !== drone.root) {
-      drone.root = root;
-      drone.o1.frequency.exponentialRampToValueAtTime(root, actx.currentTime + 0.6);
-      drone.o2.frequency.exponentialRampToValueAtTime(root * 1.5, actx.currentTime + 0.6);
-    }
-    drone.o1.detune.setTargetAtTime((speed - BASE_SPEED) * 8, actx.currentTime, 0.2);
+  function syncSound() { sound.play(!HEADLESS && !muted && !paused && soundFocused && !document.hidden); }
+  window.addEventListener('blur', () => { soundFocused = false; syncSound(); });
+  window.addEventListener('focus', () => { soundFocused = true; syncSound(); });
+  document.addEventListener('visibilitychange', syncSound);
+  window.flyerSoundStatus = () => sound.state();
+  function beep(freq, dur, type, gain, slide, delay) { sound.tone(freq, dur, type, gain, slide, delay); }
+  function ensureSound() {
+    // Called only from user-input handlers. Rendering / collecting must never create or resume audio.
+    if (!HEADLESS && !muted) sound.unlock();
+    syncSound();
   }
 
   // ---------------------------------------------------------------- fold loading
@@ -301,6 +270,7 @@
     return { pos, fwd: V.norm(V.sub(c, pos)), up: [0, 1, 0] };
   }
   function reset() {
+    sound.reset(); landmarkFocus = null; status.landmark = null;
     releaseInputs();
     P.keyActive = false;
     P.camPrevPos = null; P.camRot = undefined; P.camSc = undefined; P.camBk = undefined;
@@ -311,7 +281,7 @@
     if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
     for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
-    for (const c of cofs) { c.locked = false; c.judged = false; c.minD = 1e9; }
+    for (const c of cofs) { c.locked = false; c.judged = false; c.announced = false; c.minD = 1e9; }
     ghostRec = []; ghostNext = 0;
     animating = true;
     rebuildBlockMesh();
@@ -741,7 +711,7 @@
                     NAI: [0.40, 0.78, 0.95], NAD: [0.40, 0.78, 0.95], FAD: [0.98, 0.83, 0.30], FMN: [0.98, 0.83, 0.30],
                     CU: [0.95, 0.55, 0.25], CUA: [0.95, 0.55, 0.25], FE: [0.85, 0.45, 0.25], FE2: [0.85, 0.45, 0.25],
                     MN: [0.70, 0.45, 0.85], MG: [0.45, 0.85, 0.60], ZN: [0.65, 0.72, 0.80] };
-  let cofs = [], cofMesh = null;
+  let cofs = [], cofMesh = null, landmarkFocus = null;
   function buildCofactors() {
     const __t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
     cofs = [];
@@ -820,6 +790,24 @@
                   s: node.s, dx, dy, off, lim, near: +(best / SC).toFixed(2), locked: false, minD: 1e9, judged: false });
     }
     cofs.sort((a, b) => a.s - b.s);
+    // Nearby ribbon residues, not a new mesh or a fullscreen effect. Computed once per fold.
+    for (const c of cofs) {
+      c.resonance = [];
+      for (let i = 0; i < seq.length - 1; i++) {
+        const d = V.len(V.sub([ca[3*i]*SC, ca[3*i+1]*SC, ca[3*i+2]*SC], c.cen)) / SC;
+        if (d < 10) c.resonance.push({ i, d });
+      }
+      c.resonance.sort((a,b) => a.d-b.d);
+      // Carry a little of the ripple ahead along the ribbon too: at speed a pulse confined to the
+      // cofactor's pocket would already be behind the lens when it became visible.
+      const lead = new Map();
+      for (let ahead = 0; ahead <= 18; ahead += 3) {
+        const i = Math.round(rail.nodeAt(c.s+A(ahead)).res);
+        if (i >= 0 && i < seq.length-1 && !lead.has(i)) lead.set(i, { i, d: ahead });
+      }
+      for (const r of c.resonance) if (!lead.has(r.i) && lead.size < 28) lead.set(r.i, r);
+      c.resonance = Array.from(lead.values());
+    }
     // one mesh for all of them: they never animate, only their colour changes, and there are at most three
     const g = newGeom();
     for (const c of cofs) {
@@ -1010,8 +998,7 @@
     rings.push({ c: p.slice(), axis: cam.fwd.slice(), age: 0, life: 0.28, col: [1, 0.86, 0.5], r0: 0.2, r1: 1.2, w: 0.045 });
     burst(p, node.t, col, perfect ? 10 : 6, perfect ? 9 : 6);
     for (let k = -1; k <= 1; k++) glows.push({ i: resIdx + k, age: 0, life: 0.55, strength: k === 0 ? 1 : 0.6 });
-    // sound: a bright chime a fifth above the note, sparkle on a perfect
-    beep(220 * Math.pow(2, PENTA[Math.min(PENTA.length - 1, P.helixNote)] / 12) * 1.5, 0.22, 'sine', 0.03);
+    // Collection notes are harmonised with the score by sound.hit(), at the scoring event.
   }
   // the ribbon glows white around a hit residue and fades back to its element colour
   function updateGlows(dt) {
@@ -1021,15 +1008,15 @@
     for (const g of glows) {
       g.age += dt;
       const i = g.i; if (i < 0 || i >= n - 1) continue;
+      if (g.age < 0) continue; // a cofactor's ripple has not reached this residue yet
       const k = Math.max(0, 1 - g.age / g.life) * g.strength;
-      touched.set(i, Math.max(touched.get(i) || 0, k));
+      if (!touched.has(i) || k > touched.get(i).k) touched.set(i, { k, col: g.col || [1, 0.86, 0.5] });
     }
-    for (const [i, k] of touched) {
+    for (const [i, glow] of touched) {
       const v0 = i * SUB * RING, cnt = SUB * RING;
       const base = ribbonGeom.col.subarray(v0 * 3, (v0 + cnt) * 3);
       const out = new Float32Array(cnt * 3);
-      const gold = [1, 0.86, 0.5];
-      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * k;
+      for (let j = 0; j < out.length; j++) out[j] = base[j] + (glow.col[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * glow.k;
       renderer.updateColours(ribbonMesh, out, v0);
     }
     glows = glows.filter((g) => g.age < g.life + 0.05);
@@ -1129,11 +1116,11 @@
     for (const c of cofs) {
       if (c.judged) continue;
       const ds = c.s - P.s;
-      if (ds < -A(0.8) || ds > A(COF_WIN * 3)) continue;
+      if (ds < -A(0.8) || ds > A(COF_WIN * 6)) continue;
       const gp = cofGate(c);
       const nb = rail.nodeAt(c.s);
       const col = COF_COL[c.n] || [0.9, 0.6, 0.4];
-      const near = clamp(1 - ds / A(COF_WIN * 3), 0.25, 1);
+      const near = clamp(1 - ds / A(COF_WIN * 6), 0.25, 1);
       const puls = 0.75 + 0.25 * Math.sin(P.t * 7 - ds / A(3));
       const rr = A(COF_R) * (1 + 1.6 * clamp(ds / A(COF_WIN * 2), 0, 1));   // wide far off, tight on arrival
       for (let k = 0; k < 8; k++) {
@@ -1169,7 +1156,7 @@
     if (P.rollT > 0 || P.rollCool > 0 || P.done || P.preview > 0) return false;
     P.rollT = ROLL_T; P.rollDir = dir; P.rollCool = ROLL_T + ROLL_COOL; P.rolls++; P.rollScored = false;
     teach('roll', 'barrel roll · walls only graze you while you are over');
-    beep(300, 0.12, 'sawtooth', 0.025); setTimeout(() => beep(460, 0.16, 'sawtooth', 0.02), 90);
+    beep(300, 0.12, 'sawtooth', 0.025); beep(460, 0.16, 'sawtooth', 0.02, null, 0.09);
     return true;
   }
   // Whether a released flick is a barrel roll. Pure, and exported, because it is the one piece of input
@@ -1193,7 +1180,7 @@
   window.flyerSkipPreview = skipPreview;
   const tapLast = { d: '', t: 0 };
   window.addEventListener('keydown', (e) => { skipPreview();
-    ensureDrone();
+    ensureSound();
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
     const direction = STEER_CODES[e.code] || ARROWS[e.key];
     if (direction) {
@@ -1212,7 +1199,7 @@
     if (e.key === 'r' || e.key === 'R') reset();
     if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, flick to lunge · keyboard unchanged' : 'free flight', t: 2.5 }; }
     if (e.key === 'c' || e.key === 'C') { scheme = scheme === 'clustal' ? 'class' : 'clustal'; ghostDirty = true; flash = { text: scheme === 'clustal' ? 'side chains coloured by Clustal X residue type' : 'side chains coloured by chemical class', t: 2 }; }
-    if (e.key === 'm' || e.key === 'M') setMuted(!muted);
+    if (e.key === 'm' || e.key === 'M') { setMuted(!muted); if (!muted) ensureSound(); }
     if (e.key === 'n' || e.key === 'N') nextFold(P.done);
     if (e.key === 'Enter' && P.done) nextFold(true);
   });
@@ -1368,7 +1355,7 @@
   if (window.PointerEvent) {
     touchTarget.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' || uiTouch(e)) return;
-      ensureDrone(); fingerDown(e.pointerId, e.clientX, e.clientY);
+      ensureSound(); fingerDown(e.pointerId, e.clientX, e.clientY);
       if (e.cancelable) e.preventDefault();
     });
     touchTarget.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || uiTouch(e)) return; fingerMove(e.pointerId, e.clientX, e.clientY); if (e.cancelable) e.preventDefault(); });
@@ -1380,7 +1367,7 @@
   } else {
     touchTarget.addEventListener('touchstart', (e) => { skipPreview();
       if (uiTouch(e)) return;
-      ensureDrone();
+      ensureSound();
       for (const t of e.changedTouches) fingerDown(t.identifier, t.clientX, t.clientY);
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
@@ -1394,11 +1381,12 @@
   }
   // on-screen buttons and scripted actions
   window.flyerAction = (name) => {
-    ensureDrone();
-    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; return; }
-    if (name === 'resume') { paused = false; return; }
+    ensureSound();
+    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; syncSound(); return; }
+    if (name === 'resume') { paused = false; syncSound(); return; }
     if (name === 'pause') {
       paused = true;
+      syncSound();
       releaseInputs();
       return;
     }
@@ -1410,7 +1398,7 @@
     else if (name === 'boostOff') keys.boost = false;
     else if (name === 'brakeOn') keys.brake = true;
     else if (name === 'brakeOff') keys.brake = false;
-    else if (name === 'sound') setMuted(!muted);
+    else if (name === 'sound') { setMuted(!muted); if (!muted) ensureSound(); }
     else if (name === 'lanes') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, release to snap back, flick to lunge' : 'free flight: drag to steer', t: 2.5 }; }
   };
 
@@ -1591,7 +1579,7 @@
     const boosting0 = keys.boost || touch.boost; // touch: a second finger boosts
     if (boosting0 && !P.wasBoost && !P.done && P.preview <= 0) {
       P.fovKick = Math.max(P.fovKick, BOOST_KICK);
-      beep(160, 0.18, 'sawtooth', 0.03); setTimeout(() => beep(240, 0.22, 'sawtooth', 0.022), 60);
+      beep(160, 0.18, 'sawtooth', 0.03); beep(240, 0.22, 'sawtooth', 0.022, null, 0.06);
     }
     P.wasBoost = boosting0;
     let target = P.done ? 0 : autopilot ? 15 * turnFactor : boosting0 ? cruise + BOOST_ADD * turnFactor : keys.brake ? BRAKE_SPEED : cruise;
@@ -1679,8 +1667,10 @@
       }
       if (!have) { const [ax2, ay2] = assistTarget(); tx = ax2; ty = ay2; }
       const vdx = (tx - P.x) / 0.16, vdy = (ty - P.y) / 0.16;
-      P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-      P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      if (dt > 0) {
+        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
+        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      }
       status.casual = true;
     } else if (window.ORACLE && !P.done) {
       // Oracle player: perfect knowledge, human limits (36 Å/s² per axis with the same damping).
@@ -1737,8 +1727,11 @@
       }
       const tau = have ? clamp((have / SC) / Math.max(1, P.speed) * 0.45, 0.05, 0.1) : 0.1;
       const vdx = (tx - P.x) / tau, vdy = (ty - P.y) / tau;
-      P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-      P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      // frame(0) is also the frozen-render diagnostic; 0/0 there must not poison the next flight step.
+      if (dt > 0) {
+        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
+        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      }
       status.oracle = true;
     } else if ((hands || P.keyActive) && !autopilot && !P.done) {
       springIntegrated = true;
@@ -1990,7 +1983,7 @@
 
     // element change resets the helix note ladder
     if (node.elem !== P.lastElem) { P.lastElem = node.elem; P.helixNote = 0; if (node.elem === 'E' && trench > 0.5 && !P.trenchHinted) { P.trenchHinted = true; flash = { text: 'β-sheet · trench run: weave left and right to collect them all', t: 2.5 }; } }
-    droneTo(node.elem, P.speed);
+    sound.advance(dt, P.groove);
     if (!P.done) { P.tAll = (P.tAll || 0) + dt; if ((node.trench || 0) > 0.5) P.tTrench = (P.tTrench || 0) + dt; }
     status.trenchFrac = P.tAll ? +(P.tTrench / P.tAll).toFixed(2) : 0;
 
@@ -2023,17 +2016,17 @@
             if (P.rollT > 0 && !P.rollScored) {
               P.rollScored = true; P.score += ROLL_BONUS;
               pop(pos3, `barrel roll +${ROLL_BONUS}`, 'rgb(127,212,193)');
-              beep(880, 0.10, 'square', 0.02); setTimeout(() => beep(1170, 0.14, 'square', 0.018), 80);
+              beep(880, 0.10, 'square', 0.02); beep(1170, 0.14, 'square', 0.018, null, 0.08);
             }
             burst(V.add(b.ca, V.scale(b.inw, A(1.0))), b.real, resColour(seq[b.i]), 5, 5);
             rings.push({ c: b.ca.slice(), axis: b.tan, age: 0, life: 0.4, col: resColour(seq[b.i]) });
-            noteForFlip(); P.helixNote++;
+            sound.hit(false); P.helixNote++;
             impact(pos3, node, resColour(seq[b.i]), false, b.i);
             const mates = blocks.filter((o) => o.type === 'H' && o.seg === b.seg);
             if (mates.every((o) => o.judged && o.anim)) {
               P.helices++; P.score += HELIX_BONUS;
               pop(pos3, `${b.trench ? 'sheet' : 'helix'} repaired +${HELIX_BONUS}`, 'rgb(255,179,71)');
-              beep(330, 0.7, 'triangle', 0.04); beep(415, 0.7, 'triangle', 0.03); beep(494, 0.7, 'triangle', 0.03);
+              beep(220, 0.7, 'sine', 0.025); beep(277.18, 0.7, 'sine', 0.02); beep(329.63, 0.7, 'sine', 0.02);
             }
           }
         }
@@ -2051,13 +2044,14 @@
               burst(V.add(b.ca, V.scale(b.real, A(1.2))), b.real, [1, 0.85, 0.45], 6, 7);
               P.fovKick = Math.max(P.fovKick, 2);
               P.kick = Math.min(1, P.kick + KICK_ADD);
-              beep(1320, 0.08, 'sine', 0.025); setTimeout(() => beep(1760, 0.08, 'sine', 0.02), 60); setTimeout(() => beep(2200, 0.12, 'sine', 0.02), 120);
+              sound.hit(true);
             }
           }
         }
         if (!b.judged && P.s > b.s + A(1.0)) {
           // flew past without touching it
           b.judged = true; P.missed++; P.combo = 0; ghostDirty = true;
+          sound.miss();
           pop(pos3, 'missed', 'rgba(219,230,255,0.6)');
           beep(160, 0.12, 'triangle', 0.02);
           (status.misses = status.misses || []).push({ res: nums[b.i], minD: +(b.minD / SC).toFixed(2), speed: +P.speed.toFixed(1), gap: b.gap, radial: b.radial, hw: b.hwv, x: +(P.x / SC).toFixed(2), y: +(P.y / SC).toFixed(2) });
@@ -2085,17 +2079,20 @@
       P.rank = rankFor();
       saveBest();
       flash = { text: '', t: 0 };
-      beep(440, 0.6, 'sine', 0.05); setTimeout(() => beep(660, 0.6, 'sine', 0.05), 150); setTimeout(() => beep(880, 0.9, 'sine', 0.05), 300);
+      sound.finish();
     }
     // ---- cofactors: claimed by passing close to the gate, which sits out at the corridor edge on the
     // side the cofactor is on. Judged once, on the way past, like a side chain.
     for (const c of cofs) {
       const ds = c.s - P.s;
-      // Fire it about two seconds out, not one: at cruise the gate is on you within a second of the pips
-      // appearing, and a hint that arrives as you claim the thing teaches nothing.
-      // Keyed by KIND, not just 'cof': a copper site and a heme look nothing alike, and a player who met
-      // the heme on fold 6 still has no idea what the blue thing on fold 7 is.
-      if (!c.judged && ds > 0 && ds < A(COF_WIN * 6)) teach('cof:' + c.n, `${c.name} ahead · fly the ring of pips to claim it`, 2.6);
+      // Every encounter gets a two-note invitation, including repeated kinds on another fold.
+      // Pips now appear with it. Neither the camera nor the gate's position/timing is changed.
+      if (!c.announced && !c.judged && !P.done && ds > 0 && ds < A(COF_WIN * 6)) {
+        c.announced = true;
+        landmarkFocus = { c, phase: 'approach', start: P.t, points: 0 };
+        sound.landmark(c.n, false);
+      }
+      if (!c.judged && (ds < -A(2.5) || P.done)) c.judged = true;
       if (c.judged || Math.abs(ds) > A(2.5)) continue;
       const gp = cofGate(c);
       const d = V.len(V.sub(pos3, gp));
@@ -2104,13 +2101,19 @@
         c.judged = true; c.locked = true;
         const mult = 1 + Math.floor(P.combo / 5), pts = COF_SCORE * mult;
         P.score += pts; P.cofs++;
-        pop(pos3, `${c.name} +${pts}${mult > 1 ? ' ×' + mult : ''}`, 'rgb(255,160,120)');
+        landmarkFocus = { c, phase: 'collected', start: P.t, points: pts };
         burst(c.cen, V.norm(V.sub(c.cen, gp)), COF_COL[c.n] || [0.9, 0.6, 0.4], 10, 9);
         rings.push({ c: gp, axis: rail.nodeAt(c.s).t, age: 0, life: 0.6, col: COF_COL[c.n] || [0.9, 0.6, 0.4] });
         P.fovKick = Math.max(P.fovKick, 3);
-        beep(520, 0.10, 'triangle', 0.035); setTimeout(() => beep(780, 0.10, 'triangle', 0.03), 70); setTimeout(() => beep(1040, 0.22, 'triangle', 0.03), 140);
-      } else if (ds < -A(2.5) || P.done) c.judged = true;
+        sound.landmark(c.n, true);
+        const col = COF_COL[c.n] || [0.9, 0.6, 0.4];
+        const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        for (const r of c.resonance) glows.push({ i: r.i, age: still ? 0 : -r.d * 0.045,
+          life: 1.25, strength: 0.32, col });
+      }
     }
+    if (landmarkFocus && ((landmarkFocus.phase === 'approach' && landmarkFocus.c.judged) ||
+      (landmarkFocus.phase === 'collected' && P.t-landmarkFocus.start > 2.2) || P.done)) landmarkFocus = null;
 
     // camera: banked, shaken, wider on boost
     // camera rides the rail exactly 3.2 Å behind (no lag along the chain); only the lateral offset is smoothed
@@ -2494,7 +2497,10 @@
     buildFx(dt);
 
     status.cof = cofs.map((c) => ({ n: c.n, s: +(c.s / SC).toFixed(1), off: +c.off.toFixed(2), lim: +c.lim.toFixed(2),
-      near: c.near, locked: !!c.locked, minD: c.minD > 1e8 ? null : +(c.minD / SC).toFixed(2) }));
+      near: c.near, locked: !!c.locked, announced: !!c.announced, judged: !!c.judged,
+      minD: c.minD > 1e8 ? null : +(c.minD / SC).toFixed(2) }));
+    status.landmark = landmarkFocus ? { name: landmarkFocus.c.name, phase: landmarkFocus.phase,
+      age: +(P.t-landmarkFocus.start).toFixed(2), residues: landmarkFocus.c.resonance.length } : null;
     status.cofs = P.cofs;
     status.roll = +P.rollT.toFixed(2); status.rolls = P.rolls;
     // Whether boost is ENGAGED, not merely whether the craft happened to speed up. A corner arriving
@@ -2729,6 +2735,20 @@
     const MS = compact ? 80 : 104;
     const mmx = W - M - MS, mmy = H - (compact ? 96 : 32) - MS;
     drawMinimap(mmx, mmy, MS);
+    if (landmarkFocus && !P.done && P.preview <= 0) {
+      const m = landmarkFocus, age = P.t-m.start, caught = m.phase === 'collected';
+      const cc = COF_COL[m.c.n] || [0.9,0.6,0.4];
+      const alpha = Math.min(1, age / 0.25) * (caught ? Math.min(1, (2.2-age)/0.5) : 1);
+      const y = H < 500 ? 85 : 120, width = Math.min(W-128, 360);
+      hud.save(); hud.globalAlpha = Math.max(0, alpha); hud.textAlign = 'center';
+      hud.shadowColor = 'rgba(5,8,18,0.9)'; hud.shadowBlur = 8;
+      hud.fillStyle = `rgb(${cc.map(v => Math.round(v*255)).join(',')})`;
+      hud.font = `500 ${compact ? 17 : 20}px ${sans}`;
+      hud.fillText(m.c.name, W/2, y, width);
+      hud.font = `11px ${sans}`; hud.fillStyle = TXT;
+      hud.fillText(caught ? `Cofactor claimed · +${m.points.toLocaleString()}` : 'Cofactor ahead · follow the ring', W/2, y+21, width);
+      hud.restore();
+    }
     hud.textAlign = 'left';
     // lunge target dot
     if (laneMode && rail && !P.done && lunge.active) {
@@ -2867,7 +2887,7 @@
     if (dt === undefined) { dt = lastNow ? (now - lastNow) / 1000 : 1 / 60; lastNow = now; }
     dt = clamp(dt, 0, 0.1);
     if (P.slow > 0) { P.slow -= dt; dt *= 0.25; } // hit-stop
-    try { if (!paused) update(dt); if (!skipDraw) draw(); } catch (e) { status.err = String(e && e.stack || e); }
+    try { syncSound(); if (!paused) update(dt); sound.pump(); if (!skipDraw) draw(); } catch (e) { status.err = String(e && e.stack || e); }
     status.frames++;
     if (HEADLESS) document.title = JSON.stringify(status);
   }

@@ -1,4 +1,4 @@
-# Fold Flyer — playtest log and open issues
+# Fold Spacer — playtest log and open issues
 
 **`node tools/phone_test.js --artifact` tests the file the published LINK serves.** The link serves the
 fragment build wrapped in the head the Artifact tool supplies — a different file from the standalone, and
@@ -14,7 +14,7 @@ instead of ~1.1 and the failures moved around between runs. It looks exactly lik
 chased it into the game twice before checking `uptime`. **Check the load before believing a phone_test
 failure**, and `pkill -f chromium_headless_shell` when nothing is running.
 
-**`phone_test` bundles the current source before it runs.** It used to open `dist/FoldFlyer.html`
+**`phone_test` bundles the current source before it runs.** It used to open `dist/FoldSpacer.html`
 whichever build that happened to be, and since the bundle step normally runs AFTER the checks, every
 "phone_test passed" in this log before this point actually described the previous build. Fixed at source:
 the test now rebuilds unless given an explicit path.
@@ -1336,3 +1336,76 @@ At the unchanged 390×760 phone resolution, medians were 12.1→13.0, 27.1→26.
 The six required gates pass: autopilot, oracle, fairness, phone inputs, no-WebGL fallback
 and the complete campaign. Campaign results remain 214/215, 614,800 points, A/B/S ranks.
 The keyboard and visual suites pass too. The single-file builds are regenerated.
+
+## A musical flight and cofactor moments (2026-09-14)
+
+Approved: music that develops with clean flying, and anticipation/payoff around cofactors.
+No new boost rules, challenges, camera choreography or gameplay bonuses were added.
+
+`music.js` replaces the drone with an original 78-BPM A-major/pentatonic score. Four
+voicings form a repeating harmonic phrase. The pad is present from flight start; clean
+collections/perfects build a flow value and slipstream contributes a little more. Bass,
+arpeggio and high accents enter at 0.2/0.45/0.75. A miss cuts flow to 40%, gently thinning
+the music as existing notes decay. Flow decays slowly between targets. Collection,
+perfect and repaired-section notes now share the score's harmony. Heme has a warmer
+triangle phrase, NADH an airy upper phrase, metals a higher bell-like figure. The music
+ducks briefly for these cues rather than making the master louder. Finish resolves
+and stops scheduling new background notes.
+
+All audio is local Web Audio synthesis: no downloads, samples, third-party tracks or
+new dependencies. Scheduling uses the audio clock with 120 ms lookahead, skips stale
+beats after stalls and caps live/scheduled oscillators at 32. Every oscillator and gain
+node disconnects on completion. A shared master handles music AND old effects; delayed
+effect notes use audio scheduling rather than setTimeout callbacks that could survive
+mute or restart. Context creation/resume only comes from user-input handlers. Muting is
+remembered; pause, blur and hidden-page state silence and cancel queued voices. Resume
+starts a fresh half-bar without discarding earned flow. Unsupported audio is silent,
+not a game error. The headless game never creates an audio context.
+
+Each cofactor gets its own approach invitation once per run. Pips appear at 42 Å to match
+the cue (previously 21 Å); the existing gate geometry and scoring remain untouched. A
+small upper HUD label names it and changes to a claimed/points message for 2.2 seconds.
+Success sends a restrained, cofactor-coloured ripple through nearby ribbon and a little
+ahead along the route, so it does not immediately disappear behind the lens. At most 28
+residues are affected, chosen once on load, using the existing AO-aware colour updates.
+Reduced motion removes the travelling delay. No added rendering passes or shader work.
+The old missed-cofactor test was unreachable behind a distance early-continue; it now
+marks passed gates judged, allowing their approach label to clear.
+
+`FLYER_AUDIO=1 node tools/visual_test.js /tmp/flyer-audio` checks silent welcome, gesture
+unlock, mute/queued-note cleanup, pause/resume, blur/hidden, reset, finish, and unavailable
+Web Audio. It flies actual heme, NADH and copper gates with the existing oracle and
+captures both approach and collection, asserting one sound event per successful claim.
+It also renders a 24-second WAV through OfflineAudioContext: pad → earned layers → miss
+→ cofactor phrases → finish → mute. This measured peak 0.0383, RMS 0.0084, a silent muted
+tail and zero remaining voices; peak concurrent voices in that rendered sequence was 12.
+Listening on physical speakers/headphones remains the subjective check, not something
+the sample assertions can prove.
+
+The oracle capture exposed an old diagnostic trap: `frame(0)` could produce 0/0 in its
+velocity controller and poison later steps. Both oracle and casual force updates now
+skip division at dt=0; positive-time flight is unchanged. The finish test also explicitly
+steps through preview before reading status.done, which otherwise still describes the
+previous fold.
+
+All six gates, keyboard regressions and visual/audio checks passed. The full campaign
+remains 214/215 side chains, 614,800 points and ranks A/B/S. The rebuilt page includes
+music.js in both the shipping bundle and headless harness, with the bare dev page kept
+in step.
+
+Sequential 390×760 SwiftShader frozen-draw medians before → after: bundle 14.9→13.7 ms,
+1LDG 29.2→28.1 ms, 1M56 52.4→52.6 ms. These are effectively unchanged at the noise level
+of the shared machine; this pass does not undo the prior pixel-budget optimisation.
+The regular benchmark follows autopilot, so the success-ripple branch is verified by
+the separate oracle-flown captures rather than these timing samples.
+
+## Fold Spacer name and own-structure invitation (2026-09-14)
+
+The title, welcome wordmark, accessible welcome label and documentation now use Fold
+Spacer. Standalone and fragment outputs are FoldSpacer.html / foldspacer.html; all
+harness paths follow them. Internal flyer.* storage keys and diagnostic APIs stay
+unchanged so existing best runs, ghosts and sound preferences survive the rename.
+The welcome card now says: “Your own protein? Drop a .pdb or .cif file anywhere.”
+Small-height spacing keeps this visible in landscape. Visual tests assert the name,
+invitation bounds on desktop/phone/small-phone/landscape, and the actual File/drop path
+from welcome through Begin. The rename ships with the preceding music/cofactor work.

@@ -1,4 +1,4 @@
-// Fold Flyer — P-SEA secondary structure from Cα geometry (Labesse et al. 1997).
+// Fold Spacer — P-SEA secondary structure from Cα geometry (Labesse et al. 1997).
 // psea(ca) returns a STRING of 'H' / 'E' / 'C', one char per residue.
 (function (root) {
   'use strict';

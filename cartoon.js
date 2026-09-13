@@ -1,4 +1,4 @@
-// Fold Flyer — cartoon ribbon mesh from Cα only.
+// Fold Spacer — cartoon ribbon mesh from Cα only.
 // buildRibbon(ca, ss, axis) -> { pos: Float32Array, nrm, col, idx: Uint32Array }
 // ca in Å (flat), ss element string, axis: de-coiled helix-axis points in world units (from the rail).
 (function (root) {

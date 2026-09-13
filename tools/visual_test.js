@@ -3,12 +3,13 @@
 // Usage: node tools/visual_test.js [screenshot-directory] [standalone-page]
 // FLYER_CONTROLS=1: deterministic keyboard regression suite (desktop and coarse-pointer PC).
 // FLYER_BENCH=1 FLYER_VIEWPORT=1920,1080,2: frozen-draw timings, width/height/DPR.
+// FLYER_AUDIO=1: audio lifecycle, cofactor moments and an offline-rendered WAV preview.
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
 const root = path.dirname(__dirname);
 const output = process.argv[2] || fs.mkdtempSync(path.join(os.tmpdir(), 'flyer-visual-'));
 fs.mkdirSync(output, { recursive: true });
-const page = process.argv[3] ? path.resolve(process.argv[3]) : path.join(root, 'dist/FoldFlyer.html');
+const page = process.argv[3] ? path.resolve(process.argv[3]) : path.join(root, 'dist/FoldSpacer.html');
 if (!process.argv[3]) {
   const build = spawnSync('python3', [path.join(__dirname, 'bundle.py')], { encoding: 'utf8' });
   if (build.status) throw new Error(build.stderr);
@@ -40,6 +41,10 @@ async function navigate(width, height, phone, deviceScaleFactor = 1) {
   for (let n = 0; n < 100; n++) { if (await evaluate('typeof window.flyerStatus === "function"')) break; await pause(100); }
   await evaluate('window.frame(0)');
 }
+async function checkImportHint(name) {
+  const hint = await evaluate('(function(){var e=document.getElementById("ownstructure"),r=e.getBoundingClientRect();return {text:e.textContent,left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:innerWidth,height:innerHeight};})()');
+  check(name+' shows the structure-drop invitation', hint.text.includes('.pdb') && hint.text.includes('.cif') && hint.left>=0 && hint.right<=hint.width && hint.top>=0 && hint.bottom<=hint.height, hint);
+}
 (async () => {
   try {
     const endpoint = await new Promise((resolve, reject) => {
@@ -54,6 +59,75 @@ async function navigate(width, height, phone, deviceScaleFactor = 1) {
     ws.onmessage = e => { const d = JSON.parse(e.data), p = pending.get(d.id); if (p) { pending.delete(d.id); d.error ? p.reject(new Error(d.error.message)) : p.resolve(d.result); } };
     await send('Page.enable');
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.requestAnimationFrame=function(){return 0;};window.MARATHON=false;' });
+    if (process.env.FLYER_AUDIO) {
+      await navigate(390,760,false);
+      check('welcome creates no audio context and stays silent', await evaluate('!window.flyerSoundStatus().available && !window.flyerSoundStatus().playing'));
+      await evaluate('document.getElementById("beginbtn").focus()');
+      await key(' ', 'Space'); await key(' ', 'Space', 'keyUp');
+      await evaluate('window.frame(0)');
+      check('Begin unlocks sound', await evaluate('window.flyerSoundStatus().available && window.flyerSoundStatus().playing'));
+      await evaluate('window.flyerAction("sound")'); await pause(100);
+      check('mute stops all voices, including scheduled notes', await evaluate('window.flyerMuted() && !window.flyerSoundStatus().playing && window.flyerSoundStatus().voices===0'));
+      await evaluate('window.flyerAction("sound");window.frame(0);window.flyerAction("pause")');
+      check('pause silences music and effects immediately', await evaluate('!window.flyerSoundStatus().playing'));
+      await evaluate('window.flyerAction("resume");window.frame(0)');
+      check('resume restores playback', await evaluate('window.flyerSoundStatus().playing'));
+      await evaluate('window.dispatchEvent(new Event("blur"))');
+      check('window blur silences audio', await evaluate('!window.flyerSoundStatus().playing'));
+      await evaluate('window.dispatchEvent(new Event("focus"));Object.defineProperty(document,"hidden",{configurable:true,value:true});document.dispatchEvent(new Event("visibilitychange"))');
+      check('hidden page silences audio', await evaluate('!window.flyerSoundStatus().playing'));
+      await evaluate('delete document.hidden;document.dispatchEvent(new Event("visibilitychange"))');
+      // Fly the real, unmodified cofactor gates using the existing oracle, not a fake collect hook.
+      for (const [fold,name] of [[5,'heme'],[6,'NADH'],[9,'copper']]) {
+        const approach = await evaluate(`(function(){window.ORACLE=true;window.loadFoldIndex(${fold});window.setAutopilot(false);for(var i=0;i<9000;i++){window.frame(1/60,true);if(window.flyerStatus().landmark?.phase==='approach' && window.flyerStatus().landmark.name==='${name}' && window.flyerStatus().landmark.age>=.3)break;}window.frame(0);return {moment:window.flyerStatus().landmark,error:window.flyerStatus().err};})()`);
+        check(name+' has an approach moment', !approach.error && approach.moment?.phase==='approach', approach);
+        await shot('approach-'+name);
+        const collected = await evaluate(`(function(){for(var i=0;i<9000;i++){window.frame(1/60,true);if(window.flyerStatus().landmark?.phase==='collected' && window.flyerStatus().landmark.name==='${name}' && window.flyerStatus().landmark.age>=.3)break;}window.frame(0);return {moment:window.flyerStatus().landmark,sound:window.flyerSoundStatus(),cofs:window.flyerStatus().cofs,error:window.flyerStatus().err};})()`);
+        check(name+' collection lights nearby ribbon once', !collected.error && collected.moment?.phase==='collected' && collected.moment.name===name && collected.moment.residues>0 && collected.moment.residues<=28 && collected.sound.claims===collected.cofs && collected.cofs>0, collected);
+        await shot('claimed-'+name);
+      }
+      const cleared = await evaluate('(function(){window.loadFoldIndex(0);return {moment:window.flyerStatus().landmark,sound:window.flyerSoundStatus()};})()');
+      check('restart clears music progression and cofactor moments', !cleared.moment && cleared.sound.flow===0 && cleared.sound.claims===0);
+      const finish = await evaluate('(function(){window.ORACLE=false;window.setAutopilot(true);for(var i=0;i<3000 && (i<200 || !window.flyerStatus().done);i++)window.frame(1/60,true);var before=window.flyerSoundStatus().beat;for(var i=0;i<20;i++)window.frame(1/60,true);return {done:window.flyerStatus().done,sound:window.flyerSoundStatus(),before};})()');
+      check('finish resolves and stops scheduling the score', finish.done && finish.sound.finished && finish.sound.beat===finish.before);
+      // Real Web Audio rendering, with its actual audio clock. Suspend at 100 ms intervals to feed
+      // events and lookahead just as a running game does. onended therefore exercises node cleanup.
+      const rendered = await evaluate(`(async function(){
+        var rate=24000,seconds=24,ac=new OfflineAudioContext(1,rate*seconds,rate),s=createFlightAudio(ac),states=[];
+        s.play(true);s.pump();
+        for(let i=1;i<seconds*10;i++)ac.suspend(i/10).then(function(){
+          s.advance(.1, i>=60&&i<100 ? .8:0);
+          if(i>=30&&i<100&&i%8===0)s.hit(true);
+          if(i===105)s.miss();
+          if(i===125)s.landmark('HEM',false);
+          if(i===145)s.landmark('HEM',true);
+          if(i===165)s.landmark('NAI',true);
+          if(i===185)s.landmark('CU',true);
+          if(i===200)s.finish();
+          if(i===220)s.play(false);
+          s.pump(); if([20,95,110,219,239].includes(i))states.push({time:i/10,...s.state()});
+          ac.resume();
+        });
+        var buffer=await ac.startRendering(),samples=buffer.getChannelData(0),peak=0,sum=0,tail=0,finite=true;
+        for(var i=0;i<samples.length;i++){var x=samples[i];finite=finite&&Number.isFinite(x);peak=Math.max(peak,Math.abs(x));sum+=x*x;if(i>rate*22.2)tail=Math.max(tail,Math.abs(x));}
+        var wav=new ArrayBuffer(44+samples.length*2),v=new DataView(wav);
+        function str(at,s){for(var j=0;j<s.length;j++)v.setUint8(at+j,s.charCodeAt(j));}
+        str(0,'RIFF');v.setUint32(4,36+samples.length*2,true);str(8,'WAVE');str(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,rate,true);v.setUint32(28,rate*2,true);v.setUint16(32,2,true);v.setUint16(34,16,true);str(36,'data');v.setUint32(40,samples.length*2,true);
+        for(var i=0;i<samples.length;i++)v.setInt16(44+i*2,Math.max(-32768,Math.min(32767,Math.round(samples[i]*32767))),true);
+        var bytes=new Uint8Array(wav),text='';for(var i=0;i<bytes.length;i+=8192)text+=String.fromCharCode(...bytes.subarray(i,i+8192));
+        window.audioPreview=btoa(text);return {peak,rms:Math.sqrt(sum/samples.length),tail,finite,states,final:s.state()};
+      })()`);
+      check('offline score has audible, finite, unclipped samples', rendered.finite && rendered.peak>.01 && rendered.peak<.9 && rendered.rms>.001, rendered);
+      check('clean flying adds layers and a miss strips them back', rendered.states[0].layers===1 && rendered.states[1].layers>=3 && rendered.states[2].layers<rendered.states[1].layers);
+      check('mute leaves no residual audio or leaked voices', rendered.tail<.0001 && rendered.final.voices===0 && rendered.final.peakVoices<=32);
+      fs.writeFileSync(path.join(output,'music-preview.wav'),Buffer.from(await evaluate('window.audioPreview'),'base64'));
+      await send('Page.addScriptToEvaluateOnNewDocument', {source:'window.AudioContext=window.webkitAudioContext=undefined;'});
+      await navigate(390,760,false);
+      const unavailable = await evaluate('(function(){document.getElementById("beginbtn").click();for(var i=0;i<240;i++)window.frame(1/60,true);return {t:window.flyerStatus().t,err:window.flyerStatus().err,audio:window.flyerSoundStatus().available};})()');
+      check('missing Web Audio does not interrupt gameplay', !unavailable.err && !unavailable.audio && unavailable.t>0, unavailable);
+      console.log('Audio and cofactor captures: '+output);
+      return;
+    }
     if (process.env.FLYER_CONTROLS) {
       for (const phone of [false, true]) {
         await navigate(1280, 800, phone);
@@ -128,6 +202,8 @@ async function navigate(width, height, phone, deviceScaleFactor = 1) {
       return;
     }
     await navigate(390, 760, true);
+    check('Fold Spacer branding is consistent', await evaluate('document.title === "Fold Spacer" && document.querySelector(".wordmark").textContent === "Fold Spacer" && document.getElementById("intro").getAttribute("aria-label") === "Welcome to Fold Spacer"'));
+    await checkImportHint('phone welcome');
     check('phone layout has no horizontal overflow', await evaluate('document.documentElement.scrollWidth === innerWidth'));
     await shot('intro-phone');
     await evaluate('document.getElementById("learnbtn").click()');
@@ -158,7 +234,7 @@ async function navigate(width, height, phone, deviceScaleFactor = 1) {
       check(name + ' renders cleanly at the requested residue', !metrics.error && metrics.glError === 0 && metrics.res >= res && metrics.res <= res + 1, metrics);
       await shot(name);
     }
-    await navigate(1280, 800, false); await shot('intro-desktop');
+    await navigate(1280, 800, false); await checkImportHint('desktop welcome'); await shot('intro-desktop');
     await evaluate('document.getElementById("beginbtn").click();window.setAutopilot(true);for(var i=0;i<450;i++)window.frame(1/60,true)');
     await shot('flight-desktop');
     check('desktop help menu is reachable', await evaluate('getComputedStyle(document.getElementById("touchbar")).display !== "none"'));
@@ -174,10 +250,18 @@ async function navigate(width, height, phone, deviceScaleFactor = 1) {
     }
     for (const [width, height, name] of [[320,568,'small-phone'], [844,390,'landscape']]) {
       await navigate(width,height,true);
+      await checkImportHint(name+' welcome');
       const layout = await evaluate('(function(){var b=document.getElementById("beginbtn").getBoundingClientRect();return {left:b.left,right:b.right,top:b.top,bottom:b.bottom,width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth};})()');
       check(name + ' keeps Begin reachable', !layout.overflow && layout.left >= 0 && layout.right <= width && layout.top >= 0 && layout.bottom <= height, layout);
       await shot('intro-' + name);
     }
+    // Exercise the invitation from welcome itself, including the actual File/drop path.
+    const ownPdb = fs.readFileSync(path.join(root, 'data/2ABD.pdb'), 'utf8');
+    await evaluate(`(function(){var d=new DataTransfer();d.items.add(new File([${JSON.stringify(ownPdb)}],'2ABD.pdb',{type:'text/plain'}));document.getElementById('intro').dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:d}));})()`);
+    for (let i=0;i<50;i++) { if (await evaluate('window.flyerStatus().fold === "2ABD"')) break; await pause(100); }
+    check('a structure dropped on welcome is ready to fly', await evaluate('window.flyerStatus().fold === "2ABD" && !window.flyerStatus().err && !document.getElementById("intro").hidden'));
+    await evaluate('document.getElementById("beginbtn").click();for(var i=0;i<240;i++)window.frame(1/60,true)');
+    check('Begin flies the dropped structure', await evaluate('window.flyerStatus().fold === "2ABD" && window.flyerStatus().t>0 && !window.flyerStatus().err'));
     // No index extension: the largest campaign mesh must still fit and draw using WebGL1 indices.
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'var getExt=WebGLRenderingContext.prototype.getExtension;WebGLRenderingContext.prototype.getExtension=function(n){return n==="OES_element_index_uint"?null:getExt.call(this,n);};' });
     await navigate(390,760,true);

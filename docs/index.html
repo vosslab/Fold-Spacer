@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;height:100%;background:#050812;font:14px system-ui,sans-serif;color-scheme:dark}</style>
-<title>Fold Flyer</title>
+<title>Fold Spacer</title>
 </head>
 <body>
 <style>
@@ -28,6 +28,7 @@
   #beginbtn { min-height: 50px; min-width: 176px; padding: 14px 24px; border: 0; border-radius: 28px; color: #19202a; background: var(--ink); font-size: 14px; font-weight: 600; }
   #beginbtn:hover { background: white; }
   #intro .secondary { display: block; margin: 14px 0 0; padding: 12px 0; min-height: 44px; border: 0; background: none; color: #b4c0ce; font-size: 13px; }
+  #intro .own-structure { margin: 12px 0 0; color: var(--dim); font-size: 12px; line-height: 1.6; }
   .intro-foot { position: absolute; bottom: 28px; left: 32px; right: 32px; display: flex; justify-content: space-between; gap: 16px; color: var(--dim); font-size: 11px; }
   .intro-foot span:last-child { text-align: right; }
   #touchbar { position: absolute; right: max(18px, env(safe-area-inset-right)); top: max(86px, env(safe-area-inset-top)); display: none; align-items: flex-end; gap: 8px; flex-direction: column; z-index: 5; }
@@ -66,6 +67,7 @@
     #intro h1 { font-size: clamp(40px, 11vw, 54px); }
     #intro .description { font-size: 15px; line-height: 1.55; margin: 18px 0 24px; max-width: 260px; }
     #beginbtn { width: 100%; } #intro .secondary { margin: 9px auto 0; padding: 10px 16px; }
+    #intro .own-structure { text-align: center; }
     .intro-foot { left: 30px; right: 30px; bottom: 23px; font-size: 10px; } .intro-foot span:last-child { max-width: 135px; }
     #help { padding: 22px; }
   }
@@ -73,6 +75,8 @@
     #intro { padding-top: 70px; padding-bottom: 50px; overflow-y: auto; }
     #intro .eyebrow { display: none; } #intro h1 { font-size: 36px; }
     #intro .description { margin: 12px 0 16px; font-size: 14px; }
+    #intro .secondary { margin-top: 8px; }
+    #intro .own-structure { margin-top: 4px; font-size: 11px; line-height: 1.5; }
     .intro-foot { display: none; } #intro .card { margin: auto 0; }
   }
   @media (max-width: 640px) and (max-height: 600px) {
@@ -89,14 +93,15 @@
     </div>
   </div>
   <button id="brakebtn" aria-label="brake">Brake</button><button id="boostbtn" aria-label="boost">Boost</button>
-  <section id="intro" aria-label="Welcome to Fold Flyer">
-    <div class="wordmark">Fold Flyer</div><div class="edition">A molecular flight</div>
+  <section id="intro" aria-label="Welcome to Fold Spacer">
+    <div class="wordmark">Fold Spacer</div><div class="edition">A molecular flight</div>
     <div class="card">
       <p class="eyebrow">From nature. Into flight.</p>
       <h1>A world<br>within.</h1>
       <p class="description">Fly through a protein.<br>Restore its shape, one side chain at a time.</p>
       <button id="beginbtn">Begin flight <span aria-hidden="true">&nbsp;↗</span></button>
       <button id="learnbtn" class="secondary">How to fly &amp; the science</button>
+      <p id="ownstructure" class="own-structure">Your own protein?<br>Drop a .pdb or .cif file anywhere.</p>
     </div>
     <div class="intro-foot"><span>10 folds. N to C.</span><span>Inspired by structures from the Protein Data Bank.</span></div>
   </section>
@@ -111,6 +116,7 @@
     <dt>Barrel roll</dt><dd><span class="desktop">Double-tap the left or right arrow.</span><span class="phone">Make a hard sideways flick.</span> Walls only graze you while you are over.</dd>
   </dl>
   <p>Ride the edge of the corridor to build slipstream speed. Cofactors sit out by the wall: fly through the ring of pips beside one to claim it. A ghost of your best run flies alongside you.</p>
+  <p>The music grows with clean hits and slipstream: a quiet chord becomes a bass pulse and melody. Each cofactor has a musical invitation; claiming it sends a soft colour ripple through nearby ribbon. Music and effects share the Sound toggle (M), and pause when you leave the game.</p>
   <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · P autopilot · C colours · L touch mode · R restart · N next fold.</span></p>
   <details><summary>The molecule &amp; its colours</summary>
     <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>α-helix — fly inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>β-sheet — weave over the surface, collecting side chains</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
@@ -121,7 +127,7 @@
   </details>
 </dialog>
 <script>
-// Fold Flyer — structure parser (PDB + mmCIF, Cα only, first model).
+// Fold Spacer — structure parser (PDB + mmCIF, Cα only, first model).
 // Works in the browser (global `parseStructure`) and in node (module.exports).
 (function (root) {
   'use strict';
@@ -306,7 +312,7 @@
   else Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);
 
-// Fold Flyer — P-SEA secondary structure from Cα geometry (Labesse et al. 1997).
+// Fold Spacer — P-SEA secondary structure from Cα geometry (Labesse et al. 1997).
 // psea(ca) returns a STRING of 'H' / 'E' / 'C', one char per residue.
 (function (root) {
   'use strict';
@@ -388,7 +394,7 @@
   else Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);
 
-// Fold Flyer — the rail: de-coiled, offset, subdivided backbone with frames.
+// Fold Spacer — the rail: de-coiled, offset, subdivided backbone with frames.
 // buildRail(ca, hw, ss) -> { nodes, length, nodeAt(s), resNode(i) }
 // ca: flat Å coordinates; hw: helix weight per residue; ss: element string.
 (function (root) {
@@ -850,7 +856,7 @@
   else Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);
 
-// Fold Flyer — cartoon ribbon mesh from Cα only.
+// Fold Spacer — cartoon ribbon mesh from Cα only.
 // buildRibbon(ca, ss, axis) -> { pos: Float32Array, nrm, col, idx: Uint32Array }
 // ca in Å (flat), ss element string, axis: de-coiled helix-axis points in world units (from the rail).
 (function (root) {
@@ -1005,7 +1011,7 @@
   else Object.assign(root, api);
 })(typeof window !== 'undefined' ? window : globalThis);
 
-// Fold Flyer — tiny WebGL1 renderer: one lit, fogged, two-sided vertex-colour program.
+// Fold Spacer — tiny WebGL1 renderer: one lit, fogged, two-sided vertex-colour program.
 (function (root) {
   'use strict';
 
@@ -1247,7 +1253,150 @@ window.FOLDS = [
 // side-chain templates in the local Cα frame, for Cα-only chains
 window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01,-1.09,-2.63,-2.35],"A":[0.33,-0.69,-1.31],"E":[0.51,-0.91,-1.1,0.88,-2.28,-0.48,2.15,-2.87,-1.02,2.55,-2.3,-2.14,2.73,-3.79,-0.48],"V":[0.06,-1.16,-0.97,1.38,-1.85,-0.82,-1.1,-2.12,-0.63],"Q":[0.26,-0.95,-1.16,-0.29,-2.37,-0.88,0.82,-3.37,-0.96,1.07,-4.12,0.01,1.55,-3.35,-2.1],"L":[0.41,-0.56,-1.34,0.86,-1.98,-1.31,0.39,-2.59,-2.6,2.34,-1.92,-1.32],"N":[0.24,-0.83,-1.28,1.56,-1.58,-1.41,2.62,-0.97,-1.62,1.5,-2.92,-1.31],"H":[0.39,-0.87,-1.18,1.38,-1.95,-0.83,2.62,-2.04,-1.46,1.31,-2.97,0.09,3.26,-3.09,-0.94,2.49,-3.67,-0.01],"T":[0.44,-0.89,-1.19,-0.6,-1.74,-1.57,1.69,-1.73,-0.86],"P":[0.04,-1.08,-1.12,-0.9,-0.61,-2.22,-1.54,0.69,-1.71],"D":[0.39,-0.71,-1.3,0.16,-2.17,-1.22,-1.12,-2.44,-1.19,1.07,-2.99,-1.15],"F":[0.41,-0.58,-1.36,1.32,-1.75,-1.22,0.87,-2.95,-0.69,2.66,-1.64,-1.57,1.72,-4.04,-0.51,3.53,-2.71,-1.38,3.07,-3.9,-0.83],"K":[0.25,-0.66,-1.34,1.25,-1.8,-1.45,0.83,-2.82,-2.51,1.67,-2.83,-3.81,1.65,-4.13,-4.5],"S":[0.13,-1.08,-1.04,0.85,-0.57,-2.11],"R":[0.43,-0.93,-1.12,-0.38,-2.23,-1.15,0.09,-3.24,-2.2,-0.96,-4.17,-2.65,-1.61,-5.07,-1.89,-1.35,-5.23,-0.58,-2.55,-5.84,-2.46],"W":[0.31,-0.99,-1.11,-0.47,-2.22,-0.81,-1.56,-2.65,-1.48,-0.26,-3.13,0.28,-2.05,-3.77,-0.88,-1.26,-4.12,0.18,0.71,-3.26,1.3,-1.36,-5.21,1.08,0.6,-4.3,2.2,-0.42,-5.27,2.1],"M":[0.22,-1,-1.13,-0.91,-2.02,-1.2,-1.02,-3.03,0.34,-2.73,-3.55,0.24],"Y":[0.08,-1.16,-0.98,-1.02,-2.15,-0.61,-0.74,-3.16,0.32,-2.29,-2.04,-1.15,-1.74,-4.05,0.71,-3.31,-2.92,-0.76,-3,-3.91,0.17,-4.03,-4.77,0.46],"C":[0.49,-0.75,-1.26,1.36,0.35,-2.41]},"C":{"H":[0.32,-1.01,-1.14,-0.72,-2,-1.41,-1.1,-2.38,-2.71,-1.47,-2.7,-0.54,-2.07,-3.29,-2.57,-2.32,-3.5,-1.28],"E":[0.06,-1.19,-0.95,-0.66,-2.42,-0.36,-0.99,-3.45,-1.4,-0.02,-4.33,-1.57,-2.05,-3.45,-2.02],"T":[0.29,-1.12,-1.03,0.42,-0.61,-2.33,-0.78,-2.24,-0.96],"L":[0.1,-1.05,-1.13,-1.04,-2.07,-1.16,-2.05,-1.66,-2.24,-0.46,-3.44,-1.47],"P":[0.31,-0.82,-1.25,-0.9,-0.71,-2.18,-1.81,0.37,-1.59],"K":[0.28,-1.01,-1.04,-0.93,-1.37,-1.84,-0.63,-2.58,-2.67,-1.88,-3.26,-3.24,-1.56,-4.13,-4.39],"Q":[0.33,-1.16,-0.95,0.12,-2.57,-0.36,-1.35,-2.84,-0.25,-1.88,-3.38,0.72,-2.06,-2.48,-1.37],"S":[0.1,-1.05,-1.06,0.59,-0.39,-2.25],"V":[0.31,-1,-1.14,1.49,-1.88,-0.84,-0.89,-1.88,-1.38],"D":[-0.08,-1.34,-0.7,-1.14,-2.19,-0.1,-1.31,-2.34,1.1,-1.9,-2.78,-1.02],"A":[-0.11,-1.12,-1],"W":[0.12,-1.06,-1.1,-1.08,-1.93,-1.1,-2.29,-1.68,-1.67,-1.14,-3.19,-0.45,-3.14,-2.71,-1.38,-2.46,-3.64,-0.61,-0.22,-3.93,0.32,-2.85,-4.85,-0.03,-0.61,-5.11,0.87,-1.92,-5.56,0.69],"I":[-0.19,-1.38,-0.52,1.06,-2.16,-0.06,-0.47,-1.41,-2.03,0.74,-3.61,-0.21],"N":[-0.36,-1.08,-1.06,-0.33,-0.41,-2.43,-1.15,0.42,-2.75,0.6,-0.71,-3.27],"R":[-0.01,-1.28,-0.79,1.17,-2.11,-0.31,1.54,-3.08,-1.39,2.5,-4.04,-0.77,2.12,-5.24,-0.6,2.06,-5.98,-1.62,1.83,-5.61,0.57],"M":[0.32,-0.92,-1.22,-0.88,-1.83,-1.55,-2.37,-1.07,-2.22,-1.96,-1.16,-3.99],"F":[0.35,-0.7,-1.36,-0.85,-1.33,-2.11,-2.01,-1.76,-1.5,-0.75,-1.46,-3.49,-3.05,-2.3,-2.24,-1.78,-2,-4.23,-2.93,-2.42,-3.61],"Y":[0.09,-0.8,-1.33,-1.34,-1.23,-1.72,-2.17,-1.79,-0.75,-1.84,-1.07,-3,-3.45,-2.17,-1.04,-3.14,-1.46,-3.27,-3.95,-2.01,-2.3,-5.26,-2.4,-2.56],"C":[0.06,-1.4,-0.63,-1.14,-2.52,-0.01]}};
 
-// Fold Flyer — game loop: blocks, player physics, camera, assist/autopilot, scoring, effects, HUD.
+// Fold Spacer — a small, original generative score. Web Audio only; no files, timers or network.
+(function (root) {
+  'use strict';
+  const EIGHTH = 60 / 78 / 2;
+  const CHORDS = [[0, 4, 7, 14], [-3, 0, 4, 7], [-7, -3, 0, 4], [-5, 2, 7, 9]];
+  const MELODY = [0, 2, 1, 3, 2, 1, 3, 1];
+  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
+  const hz = semis => 110 * Math.pow(2, semis / 12);
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
+  function createFlightAudio(context) {
+    let ac = context || null, master = null, bed = null, playing = false, finished = false;
+    let flow = 0, groove = 0, beat = 0, next = 0, melodyNote = 0, scheduled = 0, peakVoices = 0;
+    let approaches = 0, claims = 0;
+    const voices = new Set();
+    function graph() {
+      master = ac.createGain(); master.gain.value = 0; master.connect(ac.destination);
+      bed = ac.createGain(); bed.gain.value = 1; bed.connect(master);
+    }
+    if (ac) graph(); // OfflineAudioContext in the audio-render test; no browser gesture needed there.
+    function unlock() {
+      try {
+        if (!ac) {
+          const Audio = root.AudioContext || root.webkitAudioContext;
+          if (!Audio) return;
+          ac = new Audio(); graph();
+          if (playing) master.gain.setTargetAtTime(0.45, ac.currentTime, 0.08);
+        }
+        if (ac.state === 'suspended' && ac.resume) {
+          const p = ac.resume(); if (p && p.catch) p.catch(() => {});
+        }
+      } catch (e) { /* Sound is optional, including a rejected autoplay request. */ }
+    }
+    function clearVoices() {
+      if (!ac) return;
+      const now = ac.currentTime;
+      for (const v of voices) {
+        v.g.gain.cancelScheduledValues(now);
+        v.g.gain.setTargetAtTime(0.0001, now, 0.008);
+        v.o.stop(now + 0.04);
+      }
+      // onended disconnects each node, including voices whose scheduled start was cancelled.
+    }
+    function play(on) {
+      on = !!on;
+      if (on === playing) return;
+      playing = on;
+      if (!ac) return;
+      master.gain.cancelScheduledValues(ac.currentTime);
+      master.gain.setTargetAtTime(on ? 0.45 : 0, ac.currentTime, on ? 0.08 : 0.012);
+      if (on) { beat -= beat % 8; next = ac.currentTime + 0.04; }
+      else clearVoices();
+    }
+    function voice(freq, dur, type, gain, when, music, attack, slide) {
+      if (!ac || !playing || voices.size >= 32) return;
+      const t = Math.max(ac.currentTime, when), a = Math.min(dur * 0.4, attack || 0.008);
+      const o = ac.createOscillator(), g = ac.createGain();
+      g.gain.value = 0.0001;
+      o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+      if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(clamp(gain, 0.0001, 0.06), t + a);
+      if (music && a > 0.1) g.gain.linearRampToValueAtTime(clamp(gain * 0.8, 0.0001, 0.06), t + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(music ? bed : master);
+      const v = { o, g }; voices.add(v);
+      o.onended = () => { o.disconnect(); g.disconnect(); voices.delete(v); };
+      o.start(t); o.stop(t + dur + 0.02);
+      scheduled++; peakVoices = Math.max(peakVoices, voices.size);
+    }
+    function tone(freq, dur, type, gain, slide, delay) {
+      if (ac) voice(freq, dur, type, gain || 0.04, ac.currentTime + (delay || 0), false, 0.008, slide);
+    }
+    function level() { return clamp(flow + groove * 0.16, 0, 1); }
+    function pump(now) {
+      if (!ac || !playing || finished) return;
+      now = now === undefined ? ac.currentTime : now;
+      // Audio-clock lookahead, not frame-count timing. Skip missed beats after a stall; never burst
+      // a backlog of notes on return. At most one eighth-note is due in the 120 ms lookahead.
+      if (next < now - 0.15) {
+        const missed = Math.ceil((now - next) / EIGHTH);
+        beat += missed; next += missed * EIGHTH;
+      }
+      while (next < now + 0.12) {
+        const chord = CHORDS[Math.floor(beat / 16) % CHORDS.length], k = beat % 16, energy = level();
+        if (k === 0 || k === 8) {
+          for (const n of [chord[0], chord[2], chord[3]]) voice(hz(n + 12), EIGHTH * 9, 'sine', 0.022, next, true, 0.3);
+        }
+        if (energy > 0.2 && k % 4 === 0) voice(hz(chord[0] - 12), 0.65, 'triangle', 0.032 * energy, next, true, 0.018);
+        if (energy > 0.45 && k % 2 === 0) {
+          const n = chord[MELODY[(k / 2) % MELODY.length]];
+          voice(hz(n + 24), 0.48, 'triangle', 0.027 * energy, next, true, 0.015);
+        }
+        if (energy > 0.75 && k % 4 === 3) voice(hz(chord[3] + 24), 0.6, 'sine', 0.012 * energy, next, true, 0.02);
+        beat++; next += EIGHTH;
+      }
+    }
+    function advance(dt, slipstream) {
+      flow = Math.max(0, flow - Math.max(0, dt) * 0.018);
+      groove = clamp(slipstream || 0, 0, 1);
+    }
+    function hit(perfect) {
+      flow = Math.min(1, flow + (perfect ? 0.14 : 0.075));
+      const n = PENTA[melodyNote++ % PENTA.length];
+      tone(hz(n + 12), 0.38, 'triangle', 0.035);
+      if (perfect) tone(hz(n + 24), 0.5, 'sine', 0.018, null, 0.07);
+    }
+    function miss() { flow *= 0.4; melodyNote = 0; }
+    function landmark(kind, collected) {
+      if (collected) claims++; else approaches++;
+      if (collected) flow = Math.min(1, flow + 0.18);
+      if (!ac || !playing) return;
+      const heme = /^HE/.test(kind), nucleotide = /^(NA|FA|FM)/.test(kind);
+      const notes = heme ? [0, 7, 12, 16] : nucleotide ? [7, 14, 16, 24] : [12, 19, 24, 28];
+      const count = collected ? 4 : 2, step = collected ? 0.13 : EIGHTH;
+      // Leave room for the landmark phrase. This is a dip in the music, not a louder master bus.
+      bed.gain.cancelScheduledValues(ac.currentTime);
+      bed.gain.setTargetAtTime(collected ? 0.45 : 0.7, ac.currentTime, 0.1);
+      bed.gain.setTargetAtTime(1, ac.currentTime + (collected ? 1.4 : 0.8), 0.6);
+      for (let i = 0; i < count; i++) tone(hz(notes[i] + 12), collected ? 1.05 : 0.65,
+        heme ? 'triangle' : 'sine', collected ? 0.035 : 0.022, null, i * step);
+    }
+    function finish() {
+      finished = true;
+      for (const [i, n] of [0, 7, 12, 16].entries()) tone(hz(n + 12), 1.3, 'sine', 0.025, null, i * 0.16);
+    }
+    function reset() {
+      clearVoices(); flow = groove = beat = melodyNote = 0; finished = false;
+      approaches = claims = 0;
+      if (ac) {
+        next = ac.currentTime + 0.04;
+        bed.gain.cancelScheduledValues(ac.currentTime); bed.gain.setValueAtTime(1, ac.currentTime);
+      }
+    }
+    function state() { return { available: !!ac, playing, finished, flow: +level().toFixed(3),
+      layers: 1 + (level() > 0.2 ? 1 : 0) + (level() > 0.45 ? 1 : 0) + (level() > 0.75 ? 1 : 0),
+      voices: voices.size, peakVoices, scheduled, beat, approaches, claims }; }
+    return { unlock, play, pump, advance, tone, hit, miss, landmark, finish, reset, state };
+  }
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createFlightAudio };
+  else root.createFlightAudio = createFlightAudio;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+// Fold Spacer — game loop: blocks, player physics, camera, assist/autopilot, scoring, effects, HUD.
 (function () {
   'use strict';
   const SC = 7;                       // world units per Å
@@ -1405,17 +1554,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   }
 
   // ---------------------------------------------------------------- sound
-  let actx = null, drone = null;
-  const PENTA = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24];
-  const DRONE_ROOT = { H: 110, E: 130.81, C: 82.41 };
-  function audio() {
-    if (HEADLESS) return null;
-    try {
-      if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-      if (actx.state === 'suspended') actx.resume();
-      return actx;
-    } catch (e) { return null; }
-  }
+  const sound = createFlightAudio();
+  let soundFocused = true;
   // Muting. This is a game people open from a link — at work, on a train, next to someone asleep — and
   // a page that starts making noise with no way to stop it gets closed. Remembered across sessions.
   let muted = false;
@@ -1423,42 +1563,20 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   function setMuted(on) {
     muted = !!on;
     try { localStorage.setItem('flyer.muted', muted ? '1' : '0'); } catch (e) { /* no storage */ }
-    if (drone && actx) drone.g.gain.setTargetAtTime(muted ? 0 : 0.03, actx.currentTime, 0.1);
+    syncSound();
     flash = { text: muted ? 'sound off' : 'sound on', t: 1.6 };
   }
   window.flyerMuted = () => muted;
-  function beep(freq, dur, type, gain, slide) {
-    if (muted) return;
-    const ac = audio(); if (!ac) return;
-    const o = ac.createOscillator(), g = ac.createGain();
-    o.type = type || 'sine'; o.frequency.value = freq;
-    if (slide) o.frequency.exponentialRampToValueAtTime(slide, ac.currentTime + dur);
-    g.gain.value = gain || 0.05;
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
-    o.connect(g); g.connect(ac.destination); o.start(); o.stop(ac.currentTime + dur);
-  }
-  function noteForFlip() {
-    const semis = PENTA[Math.min(PENTA.length - 1, P.helixNote)];
-    beep(220 * Math.pow(2, semis / 12), 0.35, 'triangle', 0.045);
-    beep(220 * Math.pow(2, semis / 12) * 2, 0.18, 'sine', 0.015);
-  }
-  function ensureDrone() {
-    const ac = audio(); if (!ac || drone) return;
-    const g = ac.createGain(); g.gain.value = 0.0; g.connect(ac.destination);
-    const o1 = ac.createOscillator(), o2 = ac.createOscillator();
-    o1.type = 'sine'; o2.type = 'triangle'; o1.connect(g); o2.connect(g); o1.start(); o2.start();
-    drone = { g, o1, o2, root: 82.41 };
-    g.gain.linearRampToValueAtTime(muted ? 0 : 0.03, ac.currentTime + 1.5);
-  }
-  function droneTo(elem, speed) {
-    if (!drone || !actx) return;
-    const root = DRONE_ROOT[elem] || DRONE_ROOT.C;
-    if (root !== drone.root) {
-      drone.root = root;
-      drone.o1.frequency.exponentialRampToValueAtTime(root, actx.currentTime + 0.6);
-      drone.o2.frequency.exponentialRampToValueAtTime(root * 1.5, actx.currentTime + 0.6);
-    }
-    drone.o1.detune.setTargetAtTime((speed - BASE_SPEED) * 8, actx.currentTime, 0.2);
+  function syncSound() { sound.play(!HEADLESS && !muted && !paused && soundFocused && !document.hidden); }
+  window.addEventListener('blur', () => { soundFocused = false; syncSound(); });
+  window.addEventListener('focus', () => { soundFocused = true; syncSound(); });
+  document.addEventListener('visibilitychange', syncSound);
+  window.flyerSoundStatus = () => sound.state();
+  function beep(freq, dur, type, gain, slide, delay) { sound.tone(freq, dur, type, gain, slide, delay); }
+  function ensureSound() {
+    // Called only from user-input handlers. Rendering / collecting must never create or resume audio.
+    if (!HEADLESS && !muted) sound.unlock();
+    syncSound();
   }
 
   // ---------------------------------------------------------------- fold loading
@@ -1550,6 +1668,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     return { pos, fwd: V.norm(V.sub(c, pos)), up: [0, 1, 0] };
   }
   function reset() {
+    sound.reset(); landmarkFocus = null; status.landmark = null;
     releaseInputs();
     P.keyActive = false;
     P.camPrevPos = null; P.camRot = undefined; P.camSc = undefined; P.camBk = undefined;
@@ -1560,7 +1679,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
     for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
-    for (const c of cofs) { c.locked = false; c.judged = false; c.minD = 1e9; }
+    for (const c of cofs) { c.locked = false; c.judged = false; c.announced = false; c.minD = 1e9; }
     ghostRec = []; ghostNext = 0;
     animating = true;
     rebuildBlockMesh();
@@ -1990,7 +2109,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
                     NAI: [0.40, 0.78, 0.95], NAD: [0.40, 0.78, 0.95], FAD: [0.98, 0.83, 0.30], FMN: [0.98, 0.83, 0.30],
                     CU: [0.95, 0.55, 0.25], CUA: [0.95, 0.55, 0.25], FE: [0.85, 0.45, 0.25], FE2: [0.85, 0.45, 0.25],
                     MN: [0.70, 0.45, 0.85], MG: [0.45, 0.85, 0.60], ZN: [0.65, 0.72, 0.80] };
-  let cofs = [], cofMesh = null;
+  let cofs = [], cofMesh = null, landmarkFocus = null;
   function buildCofactors() {
     const __t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
     cofs = [];
@@ -2069,6 +2188,24 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
                   s: node.s, dx, dy, off, lim, near: +(best / SC).toFixed(2), locked: false, minD: 1e9, judged: false });
     }
     cofs.sort((a, b) => a.s - b.s);
+    // Nearby ribbon residues, not a new mesh or a fullscreen effect. Computed once per fold.
+    for (const c of cofs) {
+      c.resonance = [];
+      for (let i = 0; i < seq.length - 1; i++) {
+        const d = V.len(V.sub([ca[3*i]*SC, ca[3*i+1]*SC, ca[3*i+2]*SC], c.cen)) / SC;
+        if (d < 10) c.resonance.push({ i, d });
+      }
+      c.resonance.sort((a,b) => a.d-b.d);
+      // Carry a little of the ripple ahead along the ribbon too: at speed a pulse confined to the
+      // cofactor's pocket would already be behind the lens when it became visible.
+      const lead = new Map();
+      for (let ahead = 0; ahead <= 18; ahead += 3) {
+        const i = Math.round(rail.nodeAt(c.s+A(ahead)).res);
+        if (i >= 0 && i < seq.length-1 && !lead.has(i)) lead.set(i, { i, d: ahead });
+      }
+      for (const r of c.resonance) if (!lead.has(r.i) && lead.size < 28) lead.set(r.i, r);
+      c.resonance = Array.from(lead.values());
+    }
     // one mesh for all of them: they never animate, only their colour changes, and there are at most three
     const g = newGeom();
     for (const c of cofs) {
@@ -2259,8 +2396,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     rings.push({ c: p.slice(), axis: cam.fwd.slice(), age: 0, life: 0.28, col: [1, 0.86, 0.5], r0: 0.2, r1: 1.2, w: 0.045 });
     burst(p, node.t, col, perfect ? 10 : 6, perfect ? 9 : 6);
     for (let k = -1; k <= 1; k++) glows.push({ i: resIdx + k, age: 0, life: 0.55, strength: k === 0 ? 1 : 0.6 });
-    // sound: a bright chime a fifth above the note, sparkle on a perfect
-    beep(220 * Math.pow(2, PENTA[Math.min(PENTA.length - 1, P.helixNote)] / 12) * 1.5, 0.22, 'sine', 0.03);
+    // Collection notes are harmonised with the score by sound.hit(), at the scoring event.
   }
   // the ribbon glows white around a hit residue and fades back to its element colour
   function updateGlows(dt) {
@@ -2270,15 +2406,15 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     for (const g of glows) {
       g.age += dt;
       const i = g.i; if (i < 0 || i >= n - 1) continue;
+      if (g.age < 0) continue; // a cofactor's ripple has not reached this residue yet
       const k = Math.max(0, 1 - g.age / g.life) * g.strength;
-      touched.set(i, Math.max(touched.get(i) || 0, k));
+      if (!touched.has(i) || k > touched.get(i).k) touched.set(i, { k, col: g.col || [1, 0.86, 0.5] });
     }
-    for (const [i, k] of touched) {
+    for (const [i, glow] of touched) {
       const v0 = i * SUB * RING, cnt = SUB * RING;
       const base = ribbonGeom.col.subarray(v0 * 3, (v0 + cnt) * 3);
       const out = new Float32Array(cnt * 3);
-      const gold = [1, 0.86, 0.5];
-      for (let j = 0; j < out.length; j++) out[j] = base[j] + (gold[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * k;
+      for (let j = 0; j < out.length; j++) out[j] = base[j] + (glow.col[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * glow.k;
       renderer.updateColours(ribbonMesh, out, v0);
     }
     glows = glows.filter((g) => g.age < g.life + 0.05);
@@ -2378,11 +2514,11 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     for (const c of cofs) {
       if (c.judged) continue;
       const ds = c.s - P.s;
-      if (ds < -A(0.8) || ds > A(COF_WIN * 3)) continue;
+      if (ds < -A(0.8) || ds > A(COF_WIN * 6)) continue;
       const gp = cofGate(c);
       const nb = rail.nodeAt(c.s);
       const col = COF_COL[c.n] || [0.9, 0.6, 0.4];
-      const near = clamp(1 - ds / A(COF_WIN * 3), 0.25, 1);
+      const near = clamp(1 - ds / A(COF_WIN * 6), 0.25, 1);
       const puls = 0.75 + 0.25 * Math.sin(P.t * 7 - ds / A(3));
       const rr = A(COF_R) * (1 + 1.6 * clamp(ds / A(COF_WIN * 2), 0, 1));   // wide far off, tight on arrival
       for (let k = 0; k < 8; k++) {
@@ -2418,7 +2554,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (P.rollT > 0 || P.rollCool > 0 || P.done || P.preview > 0) return false;
     P.rollT = ROLL_T; P.rollDir = dir; P.rollCool = ROLL_T + ROLL_COOL; P.rolls++; P.rollScored = false;
     teach('roll', 'barrel roll · walls only graze you while you are over');
-    beep(300, 0.12, 'sawtooth', 0.025); setTimeout(() => beep(460, 0.16, 'sawtooth', 0.02), 90);
+    beep(300, 0.12, 'sawtooth', 0.025); beep(460, 0.16, 'sawtooth', 0.02, null, 0.09);
     return true;
   }
   // Whether a released flick is a barrel roll. Pure, and exported, because it is the one piece of input
@@ -2442,7 +2578,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   window.flyerSkipPreview = skipPreview;
   const tapLast = { d: '', t: 0 };
   window.addEventListener('keydown', (e) => { skipPreview();
-    ensureDrone();
+    ensureSound();
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
     const direction = STEER_CODES[e.code] || ARROWS[e.key];
     if (direction) {
@@ -2461,7 +2597,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (e.key === 'r' || e.key === 'R') reset();
     if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, flick to lunge · keyboard unchanged' : 'free flight', t: 2.5 }; }
     if (e.key === 'c' || e.key === 'C') { scheme = scheme === 'clustal' ? 'class' : 'clustal'; ghostDirty = true; flash = { text: scheme === 'clustal' ? 'side chains coloured by Clustal X residue type' : 'side chains coloured by chemical class', t: 2 }; }
-    if (e.key === 'm' || e.key === 'M') setMuted(!muted);
+    if (e.key === 'm' || e.key === 'M') { setMuted(!muted); if (!muted) ensureSound(); }
     if (e.key === 'n' || e.key === 'N') nextFold(P.done);
     if (e.key === 'Enter' && P.done) nextFold(true);
   });
@@ -2617,7 +2753,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   if (window.PointerEvent) {
     touchTarget.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' || uiTouch(e)) return;
-      ensureDrone(); fingerDown(e.pointerId, e.clientX, e.clientY);
+      ensureSound(); fingerDown(e.pointerId, e.clientX, e.clientY);
       if (e.cancelable) e.preventDefault();
     });
     touchTarget.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse' || uiTouch(e)) return; fingerMove(e.pointerId, e.clientX, e.clientY); if (e.cancelable) e.preventDefault(); });
@@ -2629,7 +2765,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   } else {
     touchTarget.addEventListener('touchstart', (e) => { skipPreview();
       if (uiTouch(e)) return;
-      ensureDrone();
+      ensureSound();
       for (const t of e.changedTouches) fingerDown(t.identifier, t.clientX, t.clientY);
       if (e.cancelable) e.preventDefault();
     }, { passive: false });
@@ -2643,11 +2779,12 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   }
   // on-screen buttons and scripted actions
   window.flyerAction = (name) => {
-    ensureDrone();
-    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; return; }
-    if (name === 'resume') { paused = false; return; }
+    ensureSound();
+    if (name === 'start') { introBlend = introPose ? 0.85 : 0; paused = false; syncSound(); return; }
+    if (name === 'resume') { paused = false; syncSound(); return; }
     if (name === 'pause') {
       paused = true;
+      syncSound();
       releaseInputs();
       return;
     }
@@ -2659,7 +2796,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     else if (name === 'boostOff') keys.boost = false;
     else if (name === 'brakeOn') keys.brake = true;
     else if (name === 'brakeOff') keys.brake = false;
-    else if (name === 'sound') setMuted(!muted);
+    else if (name === 'sound') { setMuted(!muted); if (!muted) ensureSound(); }
     else if (name === 'lanes') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, release to snap back, flick to lunge' : 'free flight: drag to steer', t: 2.5 }; }
   };
 
@@ -2840,7 +2977,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     const boosting0 = keys.boost || touch.boost; // touch: a second finger boosts
     if (boosting0 && !P.wasBoost && !P.done && P.preview <= 0) {
       P.fovKick = Math.max(P.fovKick, BOOST_KICK);
-      beep(160, 0.18, 'sawtooth', 0.03); setTimeout(() => beep(240, 0.22, 'sawtooth', 0.022), 60);
+      beep(160, 0.18, 'sawtooth', 0.03); beep(240, 0.22, 'sawtooth', 0.022, null, 0.06);
     }
     P.wasBoost = boosting0;
     let target = P.done ? 0 : autopilot ? 15 * turnFactor : boosting0 ? cruise + BOOST_ADD * turnFactor : keys.brake ? BRAKE_SPEED : cruise;
@@ -2928,8 +3065,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       }
       if (!have) { const [ax2, ay2] = assistTarget(); tx = ax2; ty = ay2; }
       const vdx = (tx - P.x) / 0.16, vdy = (ty - P.y) / 0.16;
-      P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-      P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      if (dt > 0) {
+        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
+        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      }
       status.casual = true;
     } else if (window.ORACLE && !P.done) {
       // Oracle player: perfect knowledge, human limits (36 Å/s² per axis with the same damping).
@@ -2986,8 +3125,11 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       }
       const tau = have ? clamp((have / SC) / Math.max(1, P.speed) * 0.45, 0.05, 0.1) : 0.1;
       const vdx = (tx - P.x) / tau, vdy = (ty - P.y) / tau;
-      P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-      P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      // frame(0) is also the frozen-render diagnostic; 0/0 there must not poison the next flight step.
+      if (dt > 0) {
+        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
+        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
+      }
       status.oracle = true;
     } else if ((hands || P.keyActive) && !autopilot && !P.done) {
       springIntegrated = true;
@@ -3239,7 +3381,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
     // element change resets the helix note ladder
     if (node.elem !== P.lastElem) { P.lastElem = node.elem; P.helixNote = 0; if (node.elem === 'E' && trench > 0.5 && !P.trenchHinted) { P.trenchHinted = true; flash = { text: 'β-sheet · trench run: weave left and right to collect them all', t: 2.5 }; } }
-    droneTo(node.elem, P.speed);
+    sound.advance(dt, P.groove);
     if (!P.done) { P.tAll = (P.tAll || 0) + dt; if ((node.trench || 0) > 0.5) P.tTrench = (P.tTrench || 0) + dt; }
     status.trenchFrac = P.tAll ? +(P.tTrench / P.tAll).toFixed(2) : 0;
 
@@ -3272,17 +3414,17 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
             if (P.rollT > 0 && !P.rollScored) {
               P.rollScored = true; P.score += ROLL_BONUS;
               pop(pos3, `barrel roll +${ROLL_BONUS}`, 'rgb(127,212,193)');
-              beep(880, 0.10, 'square', 0.02); setTimeout(() => beep(1170, 0.14, 'square', 0.018), 80);
+              beep(880, 0.10, 'square', 0.02); beep(1170, 0.14, 'square', 0.018, null, 0.08);
             }
             burst(V.add(b.ca, V.scale(b.inw, A(1.0))), b.real, resColour(seq[b.i]), 5, 5);
             rings.push({ c: b.ca.slice(), axis: b.tan, age: 0, life: 0.4, col: resColour(seq[b.i]) });
-            noteForFlip(); P.helixNote++;
+            sound.hit(false); P.helixNote++;
             impact(pos3, node, resColour(seq[b.i]), false, b.i);
             const mates = blocks.filter((o) => o.type === 'H' && o.seg === b.seg);
             if (mates.every((o) => o.judged && o.anim)) {
               P.helices++; P.score += HELIX_BONUS;
               pop(pos3, `${b.trench ? 'sheet' : 'helix'} repaired +${HELIX_BONUS}`, 'rgb(255,179,71)');
-              beep(330, 0.7, 'triangle', 0.04); beep(415, 0.7, 'triangle', 0.03); beep(494, 0.7, 'triangle', 0.03);
+              beep(220, 0.7, 'sine', 0.025); beep(277.18, 0.7, 'sine', 0.02); beep(329.63, 0.7, 'sine', 0.02);
             }
           }
         }
@@ -3300,13 +3442,14 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
               burst(V.add(b.ca, V.scale(b.real, A(1.2))), b.real, [1, 0.85, 0.45], 6, 7);
               P.fovKick = Math.max(P.fovKick, 2);
               P.kick = Math.min(1, P.kick + KICK_ADD);
-              beep(1320, 0.08, 'sine', 0.025); setTimeout(() => beep(1760, 0.08, 'sine', 0.02), 60); setTimeout(() => beep(2200, 0.12, 'sine', 0.02), 120);
+              sound.hit(true);
             }
           }
         }
         if (!b.judged && P.s > b.s + A(1.0)) {
           // flew past without touching it
           b.judged = true; P.missed++; P.combo = 0; ghostDirty = true;
+          sound.miss();
           pop(pos3, 'missed', 'rgba(219,230,255,0.6)');
           beep(160, 0.12, 'triangle', 0.02);
           (status.misses = status.misses || []).push({ res: nums[b.i], minD: +(b.minD / SC).toFixed(2), speed: +P.speed.toFixed(1), gap: b.gap, radial: b.radial, hw: b.hwv, x: +(P.x / SC).toFixed(2), y: +(P.y / SC).toFixed(2) });
@@ -3334,17 +3477,20 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       P.rank = rankFor();
       saveBest();
       flash = { text: '', t: 0 };
-      beep(440, 0.6, 'sine', 0.05); setTimeout(() => beep(660, 0.6, 'sine', 0.05), 150); setTimeout(() => beep(880, 0.9, 'sine', 0.05), 300);
+      sound.finish();
     }
     // ---- cofactors: claimed by passing close to the gate, which sits out at the corridor edge on the
     // side the cofactor is on. Judged once, on the way past, like a side chain.
     for (const c of cofs) {
       const ds = c.s - P.s;
-      // Fire it about two seconds out, not one: at cruise the gate is on you within a second of the pips
-      // appearing, and a hint that arrives as you claim the thing teaches nothing.
-      // Keyed by KIND, not just 'cof': a copper site and a heme look nothing alike, and a player who met
-      // the heme on fold 6 still has no idea what the blue thing on fold 7 is.
-      if (!c.judged && ds > 0 && ds < A(COF_WIN * 6)) teach('cof:' + c.n, `${c.name} ahead · fly the ring of pips to claim it`, 2.6);
+      // Every encounter gets a two-note invitation, including repeated kinds on another fold.
+      // Pips now appear with it. Neither the camera nor the gate's position/timing is changed.
+      if (!c.announced && !c.judged && !P.done && ds > 0 && ds < A(COF_WIN * 6)) {
+        c.announced = true;
+        landmarkFocus = { c, phase: 'approach', start: P.t, points: 0 };
+        sound.landmark(c.n, false);
+      }
+      if (!c.judged && (ds < -A(2.5) || P.done)) c.judged = true;
       if (c.judged || Math.abs(ds) > A(2.5)) continue;
       const gp = cofGate(c);
       const d = V.len(V.sub(pos3, gp));
@@ -3353,13 +3499,19 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         c.judged = true; c.locked = true;
         const mult = 1 + Math.floor(P.combo / 5), pts = COF_SCORE * mult;
         P.score += pts; P.cofs++;
-        pop(pos3, `${c.name} +${pts}${mult > 1 ? ' ×' + mult : ''}`, 'rgb(255,160,120)');
+        landmarkFocus = { c, phase: 'collected', start: P.t, points: pts };
         burst(c.cen, V.norm(V.sub(c.cen, gp)), COF_COL[c.n] || [0.9, 0.6, 0.4], 10, 9);
         rings.push({ c: gp, axis: rail.nodeAt(c.s).t, age: 0, life: 0.6, col: COF_COL[c.n] || [0.9, 0.6, 0.4] });
         P.fovKick = Math.max(P.fovKick, 3);
-        beep(520, 0.10, 'triangle', 0.035); setTimeout(() => beep(780, 0.10, 'triangle', 0.03), 70); setTimeout(() => beep(1040, 0.22, 'triangle', 0.03), 140);
-      } else if (ds < -A(2.5) || P.done) c.judged = true;
+        sound.landmark(c.n, true);
+        const col = COF_COL[c.n] || [0.9, 0.6, 0.4];
+        const still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        for (const r of c.resonance) glows.push({ i: r.i, age: still ? 0 : -r.d * 0.045,
+          life: 1.25, strength: 0.32, col });
+      }
     }
+    if (landmarkFocus && ((landmarkFocus.phase === 'approach' && landmarkFocus.c.judged) ||
+      (landmarkFocus.phase === 'collected' && P.t-landmarkFocus.start > 2.2) || P.done)) landmarkFocus = null;
 
     // camera: banked, shaken, wider on boost
     // camera rides the rail exactly 3.2 Å behind (no lag along the chain); only the lateral offset is smoothed
@@ -3743,7 +3895,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     buildFx(dt);
 
     status.cof = cofs.map((c) => ({ n: c.n, s: +(c.s / SC).toFixed(1), off: +c.off.toFixed(2), lim: +c.lim.toFixed(2),
-      near: c.near, locked: !!c.locked, minD: c.minD > 1e8 ? null : +(c.minD / SC).toFixed(2) }));
+      near: c.near, locked: !!c.locked, announced: !!c.announced, judged: !!c.judged,
+      minD: c.minD > 1e8 ? null : +(c.minD / SC).toFixed(2) }));
+    status.landmark = landmarkFocus ? { name: landmarkFocus.c.name, phase: landmarkFocus.phase,
+      age: +(P.t-landmarkFocus.start).toFixed(2), residues: landmarkFocus.c.resonance.length } : null;
     status.cofs = P.cofs;
     status.roll = +P.rollT.toFixed(2); status.rolls = P.rolls;
     // Whether boost is ENGAGED, not merely whether the craft happened to speed up. A corner arriving
@@ -3978,6 +4133,20 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     const MS = compact ? 80 : 104;
     const mmx = W - M - MS, mmy = H - (compact ? 96 : 32) - MS;
     drawMinimap(mmx, mmy, MS);
+    if (landmarkFocus && !P.done && P.preview <= 0) {
+      const m = landmarkFocus, age = P.t-m.start, caught = m.phase === 'collected';
+      const cc = COF_COL[m.c.n] || [0.9,0.6,0.4];
+      const alpha = Math.min(1, age / 0.25) * (caught ? Math.min(1, (2.2-age)/0.5) : 1);
+      const y = H < 500 ? 85 : 120, width = Math.min(W-128, 360);
+      hud.save(); hud.globalAlpha = Math.max(0, alpha); hud.textAlign = 'center';
+      hud.shadowColor = 'rgba(5,8,18,0.9)'; hud.shadowBlur = 8;
+      hud.fillStyle = `rgb(${cc.map(v => Math.round(v*255)).join(',')})`;
+      hud.font = `500 ${compact ? 17 : 20}px ${sans}`;
+      hud.fillText(m.c.name, W/2, y, width);
+      hud.font = `11px ${sans}`; hud.fillStyle = TXT;
+      hud.fillText(caught ? `Cofactor claimed · +${m.points.toLocaleString()}` : 'Cofactor ahead · follow the ring', W/2, y+21, width);
+      hud.restore();
+    }
     hud.textAlign = 'left';
     // lunge target dot
     if (laneMode && rail && !P.done && lunge.active) {
@@ -4116,7 +4285,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (dt === undefined) { dt = lastNow ? (now - lastNow) / 1000 : 1 / 60; lastNow = now; }
     dt = clamp(dt, 0, 0.1);
     if (P.slow > 0) { P.slow -= dt; dt *= 0.25; } // hit-stop
-    try { if (!paused) update(dt); if (!skipDraw) draw(); } catch (e) { status.err = String(e && e.stack || e); }
+    try { syncSound(); if (!paused) update(dt); sound.pump(); if (!skipDraw) draw(); } catch (e) { status.err = String(e && e.stack || e); }
     status.frames++;
     if (HEADLESS) document.title = JSON.stringify(status);
   }

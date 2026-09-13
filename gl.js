@@ -1,4 +1,4 @@
-// Fold Flyer — tiny WebGL1 renderer: one lit, fogged, two-sided vertex-colour program.
+// Fold Spacer — tiny WebGL1 renderer: one lit, fogged, two-sided vertex-colour program.
 (function (root) {
   'use strict';
 
