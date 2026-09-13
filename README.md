@@ -35,12 +35,12 @@ Secondary structure is computed from Cα geometry, not read from the file.
 
 |  | keyboard | phone |
 |---|---|---|
-| steer | arrow keys | drag from wherever your finger lands |
+| steer | arrow keys or WASD; combine directions for diagonals | drag from wherever your finger lands |
 | boost | `Shift` or `Space` | boost button, bottom right (or a second finger) |
 | brake | `Ctrl` — turns harder while slowing | brake button, bottom left |
 | barrel roll | double-tap `←` or `→` | a hard sideways flick |
 | sound | `M` | sound, in the ⋯ menu |
-| autopilot | `A` | ⋯ menu |
+| autopilot | `P` | ⋯ menu |
 | next fold / restart | `N` / `R` | tap the finish card / ⋯ menu |
 | colour scheme | `C` | ⋯ menu |
 

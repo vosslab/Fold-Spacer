@@ -173,6 +173,15 @@ replaced by a push along the surface normal by exactly the penetration depth.
 
 ## 5. Known weaknesses, stated plainly
 
+**Large-screen pixel budget (2026-09-14).** The 3D drawing buffer is capped at
+1920 × 1080 pixels in area, preserving the viewport's aspect ratio. This is a fixed
+budget, not a frame-time-dependent resolution switch: no quality pumping during play.
+The HUD keeps its separate, up-to-2× display resolution; DOM controls are unchanged.
+Ordinary phone viewports stay at their previous resolution. The scene is upscaled on
+larger / Retina displays, trading some fine-edge sharpness for responsiveness. Geometry,
+AO, lighting, near cuts and strand culling are unchanged. The shader now discards cut
+fragments before lighting and skips lighting entirely on unlit effects.
+
 - **No model matrix.** `VS` has only `uProj` and `uView`; every vertex is world-space. The
   craft is rebuilt from scratch and re-uploaded **every frame** (`buildCraft`), and since
   the ghost was added, twice. So are the fx quads and the target posts. Adding `uModel`
@@ -228,6 +237,11 @@ It checks the actual reached residue, including the preview's rounded-to-zero st
 `FLYER_BENCH=1 node tools/visual_test.js /tmp/flyer-review /absolute/path/to/build.html` measures
 55 repeated frozen draws per fold (5 warmups), with a one-pixel readback to wait for GPU work.
 Run builds sequentially on an otherwise quiet machine; `gl.finish()` alone understated cost.
+Set `FLYER_VIEWPORT=1920,1080,2` to benchmark a large 2×-DPI desktop instead. The output
+includes actual drawing-buffer dimensions. The regular visual suite also checks live
+resizing through Retina, 4K, ultrawide and small windows, with separate HUD dimensions.
+`FLYER_CONTROLS=1 node tools/visual_test.js` checks physical-key combinations and movement
+at 30/60/120 Hz on both desktop and coarse-pointer PCs, without wall-time-dependent input.
 
 **Camera/comfort diagnostics** (these catch rendering changes that quietly move the lens):
 `window.CLIPCHK=1` gives `camIn` (frames with the lens inside drawn geometry — should stay

@@ -105,13 +105,13 @@
   <header><h2 id="helptitle">How to fly</h2><button id="helpclose" aria-label="Close help">×</button></header>
   <p>Follow the protein from N- to C-terminus. Fly into pulsing side chains to restore them. A dead-centre hit scores double; a sequence of hits builds your combo.</p>
   <dl>
-    <dt>Steer</dt><dd><span class="desktop">Arrow keys. Tap to nudge, hold to move further.</span><span class="phone">Touch and drag anywhere. Release to return to the centre; a quick flick lunges toward a side chain.</span></dd>
+    <dt>Steer</dt><dd><span class="desktop">Arrow keys or WASD. Hold two directions to fly diagonally. Tap to nudge; release to centre.</span><span class="phone">Touch and drag anywhere. Release to return to the centre; a quick flick lunges toward a side chain.</span></dd>
     <dt>Boost</dt><dd><span class="desktop">Hold Shift or Space.</span><span class="phone">Hold Boost at the bottom right, or use a second finger.</span></dd>
     <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down and turn harder.</span><span class="phone">Hold Brake at the bottom left to slow down and turn harder.</span></dd>
     <dt>Barrel roll</dt><dd><span class="desktop">Double-tap the left or right arrow.</span><span class="phone">Make a hard sideways flick.</span> Walls only graze you while you are over.</dd>
   </dl>
   <p>Ride the edge of the corridor to build slipstream speed. Cofactors sit out by the wall: fly through the ring of pips beside one to claim it. A ghost of your best run flies alongside you.</p>
-  <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · A autopilot · C colours · L lane mode · R restart · N next fold.</span></p>
+  <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · P autopilot · C colours · L touch mode · R restart · N next fold.</span></p>
   <details><summary>The molecule &amp; its colours</summary>
     <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>α-helix — fly inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>β-sheet — weave over the surface, collecting side chains</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
     <p>Side chains use Clustal X colours. Their ball-and-stick shapes come from real heavy-atom coordinates. Drop your own .pdb or .cif file onto the game to fly its structure.</p>
@@ -1024,19 +1024,6 @@
     varying vec3 vNrm, vCol, vPos;
     uniform vec3 uLight; uniform vec3 uFog; uniform vec2 uFogRange; uniform float uAmbient; uniform float uUnlit; uniform float uAlpha; uniform vec3 uNear;
     void main() {
-      vec3 n = normalize(vNrm);
-      if (!gl_FrontFacing) n = -n;
-      vec3 v = normalize(-vPos);
-      if (dot(n, v) < 0.0) n = -n;
-      float wrap = 0.5;
-      float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
-      vec3 h = normalize(uLight + v);
-      // Fixed world key + broad camera fill: contours stay readable inside the fold. A restrained
-      // satin highlight reveals curvature without turning an atom or the ribbon's edge pure white.
-      float fill = max(0.0, dot(n, v));
-      float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
-      vec3 c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
-      c = mix(c, vCol, uUnlit);
       float d = length(vPos);
       // Geometry right on the lens has to go: a helix ribbon is 0.4 A thick, so a surface a fraction of
       // an angstrom off the camera fills the screen with one flat colour and the player is blind. It is
@@ -1045,6 +1032,21 @@
       // half-dissolved is television static.
       if (uNear.z > 1.5) { if (d < uNear.y) discard; }
       else if (uNear.z > 0.5) { if (d >= uNear.y) discard; }
+      // Cut hidden fragments before lighting. Unlit effects need none of the normal/specular work.
+      vec3 c = vCol;
+      if (uUnlit < 0.5) {
+        vec3 n = normalize(vNrm);
+        if (!gl_FrontFacing) n = -n;
+        vec3 v = normalize(-vPos);
+        if (dot(n, v) < 0.0) n = -n;
+        float wrap = 0.5;
+        float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
+        vec3 h = normalize(uLight + v);
+        // Fixed world key + broad camera fill, with the same restrained satin highlight.
+        float fill = max(0.0, dot(n, v));
+        float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
+        c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
+      }
       float f = clamp((d - uFogRange.x) / (uFogRange.y - uFogRange.x), 0.0, 1.0);
       f = f * f * (3.0 - 2.0 * f);
       float na = 1.0;
@@ -1548,6 +1550,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     return { pos, fwd: V.norm(V.sub(c, pos)), up: [0, 1, 0] };
   }
   function reset() {
+    releaseInputs();
+    P.keyActive = false;
     P.camPrevPos = null; P.camRot = undefined; P.camSc = undefined; P.camBk = undefined;
     P.duck = undefined; P.duckDir = null; P.camBackS = undefined; P.deckLift = undefined;
     Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
@@ -2393,6 +2397,21 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
   // ---------------------------------------------------------------- input
   const ARROWS = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', a: 'left', d: 'right', w: 'up', s: 'down', A: 'left', D: 'right', W: 'up', S: 'down' };
+  const STEER_CODES = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down', KeyA: 'left', KeyD: 'right', KeyW: 'up', KeyS: 'down' };
+  const heldKeys = new Map();
+  function clearKeyboard() {
+    heldKeys.clear();
+    for (const k of Object.keys(keys)) keys[k] = false;
+    P.keyReach = 0; // no stale ramp on the next press; the spring still settles after release
+    tapLast.d = ''; tapLast.t = 0;
+  }
+  function releaseInputs() {
+    clearKeyboard();
+    touch.id = touch.boostId = null; touch.dx = touch.dy = 0;
+    touch.boost = touch.hold = false; lunge.active = false;
+  }
+  window.addEventListener('blur', releaseInputs);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseInputs(); lastNow = 0; } });
   // Any input ends the preview early — it eases out over PREVIEW_BLEND rather than cutting.
   const skipPreview = () => { if (P.preview > PREVIEW_BLEND) P.preview = PREVIEW_BLEND; };
   function startRoll(dir) {
@@ -2424,30 +2443,33 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const tapLast = { d: '', t: 0 };
   window.addEventListener('keydown', (e) => { skipPreview();
     ensureDrone();
-    if (e.key === 'a' || e.key === 'A') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
-    if (ARROWS[e.key]) {
-      // Double-tap a side to roll that way. Not gated on free flight: in lane mode an arrow already
-      // lunges, and a double-tap lunging AND rolling is exactly how the touch flick layers.
-      if (!e.repeat) {
-        const d = ARROWS[e.key], now = performance.now();
+    if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
+    const direction = STEER_CODES[e.code] || ARROWS[e.key];
+    if (direction) {
+      // Track physical keys separately: releasing D must not cancel a still-held Right arrow.
+      const token = e.code || e.key;
+      if (!e.repeat && !heldKeys.has(token) && !keys[direction]) {
+        const d = direction, now = performance.now();
         if ((d === 'left' || d === 'right') && tapLast.d === d && now - tapLast.t < 320) { startRoll(d === 'right' ? 1 : -1); tapLast.t = 0; }
         else { tapLast.d = d; tapLast.t = now; }
       }
-      if (laneMode) { if (!e.repeat) laneSwipe(ARROWS[e.key]); } else { keys[ARROWS[e.key]] = true; autopilot = false; } e.preventDefault(); }
-    if (e.key === 'Shift' || e.key === ' ') { keys.boost = true; e.preventDefault(); }
-    if (e.key === 'Control') keys.brake = true;
+      heldKeys.set(token, direction); keys[direction] = true;
+      autopilot = false; lunge.active = false; e.preventDefault(); }
+    if (e.key === 'Shift' || e.key === ' ') { heldKeys.set(e.code || e.key, 'boost'); keys.boost = true; e.preventDefault(); }
+    if (e.key === 'Control') { heldKeys.set(e.code || e.key, 'brake'); keys.brake = true; e.preventDefault(); }
     if (e.repeat) return;
     if (e.key === 'r' || e.key === 'R') reset();
-    if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'lunge mode · tap an arrow to lunge that way, the craft snaps back' : 'free flight', t: 2.5 }; }
+    if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, flick to lunge · keyboard unchanged' : 'free flight', t: 2.5 }; }
     if (e.key === 'c' || e.key === 'C') { scheme = scheme === 'clustal' ? 'class' : 'clustal'; ghostDirty = true; flash = { text: scheme === 'clustal' ? 'side chains coloured by Clustal X residue type' : 'side chains coloured by chemical class', t: 2 }; }
     if (e.key === 'm' || e.key === 'M') setMuted(!muted);
     if (e.key === 'n' || e.key === 'N') nextFold(P.done);
     if (e.key === 'Enter' && P.done) nextFold(true);
   });
   window.addEventListener('keyup', (e) => {
-    if (ARROWS[e.key]) keys[ARROWS[e.key]] = false;
-    if (e.key === 'Shift' || e.key === ' ') keys.boost = false;
-    if (e.key === 'Control') keys.brake = false;
+    const token = e.code || e.key;
+    const direction = heldKeys.get(token) || STEER_CODES[e.code] || ARROWS[e.key];
+    heldKeys.delete(token);
+    if (direction) keys[direction] = Array.from(heldKeys.values()).includes(direction);
   });
   // touch: drag anywhere to steer (virtual stick around the first touch point), a second finger boosts
   const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, boost: false, boostId: null, t0: 0, hold: false, swiped: false };
@@ -2522,8 +2544,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // A boost that just raises a number does not read as a boost. Punch the lens when it starts.
   const BOOST_KICK = 4;
   const BRAKE_TURN = 1.5;    // how much harder the craft turns while braking
-  const KEY_W = 15;          // rad/s of the keyboard's steering spring, as LUNGE.wFollow is for a finger
-  const KEY_BACK = 2.0;      // how fast a key ramps its axis out to the ring, and back on release
+  const KEY_W = 20;          // critically damped, like finger-following; acceleration is still capped
+  const KEY_RAMP = 3.0;      // ramp reach, not direction: a second key / reversal responds immediately
   const COF_SWING = 1.55;    // the craft reaches a gate MOVING outward and must null that before it can
                             // come back, which the from-rest reach formula does not charge it for
   const COF_HEAD = 0.88;     // a gate placed exactly at the reach limit is neither fun nor robust
@@ -2543,6 +2565,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   } // hold at the wall (s), spring stiffness (rad/s), px of drag for a full reach
   const lunge = { active: false, t: 0, ang: 0 };
   function laneSwipe(dirOrAngle) {
+    P.keyActive = false;
     let ang = typeof dirOrAngle === 'number' ? dirOrAngle : { right: 0, up: Math.PI / 2, left: Math.PI, down: -Math.PI / 2 }[dirOrAngle];
     // snap to an upcoming inward side chain within ~35° of the swipe
     for (const b of blocks) {
@@ -2567,7 +2590,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   function fingerDown(id, x, y) {
     if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
     if (P.done && doneAt && performance.now() - doneAt > 800) { nextFold(true); return; }
-    if (touch.id === null) { touch.id = id; touch.x0 = x; touch.y0 = y; touch.dx = 0; touch.dy = 0; touch.t0 = performance.now(); touch.hold = false; touch.swiped = false; if (!laneMode) autopilot = false; }
+    if (touch.id === null) { P.keyActive = false; touch.id = id; touch.x0 = x; touch.y0 = y; touch.dx = 0; touch.dy = 0; touch.t0 = performance.now(); touch.hold = false; touch.swiped = false; if (!laneMode) autopilot = false; }
     else if (touch.boostId === null) { touch.boostId = id; touch.boost = true; }
   }
   function fingerMove(id, x, y) {
@@ -2625,8 +2648,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (name === 'resume') { paused = false; return; }
     if (name === 'pause') {
       paused = true;
-      for (const k of Object.keys(keys)) keys[k] = false;
-      touch.id = touch.boostId = null; touch.dx = touch.dy = 0; touch.boost = touch.hold = false; lunge.active = false;
+      releaseInputs();
       return;
     }
     if (name === 'autopilot') autopilot = !autopilot;
@@ -2845,8 +2867,12 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
     // lateral control
     const stick = touch.id !== null && !laneMode;
-    const hands = keys.left || keys.right || keys.up || keys.down || stick;
-    if (laneMode && !autopilot && !P.done) {
+    const keyboard = keys.left || keys.right || keys.up || keys.down;
+    const hands = keyboard || stick;
+    let springIntegrated = false;
+    if (!keyboard) P.keyReach = 0;
+    if (laneMode && !keyboard && !P.keyActive && !autopilot && !P.done) {
+      springIntegrated = true;
       // lunge: a critically damped spring toward the swiped side while holding, then back to the centre
       // how far the finger can send the craft: a disc inside a helix, the full slot width in a trench
       const nodeR = rail.nodeAt(P.s);
@@ -2963,13 +2989,12 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
       P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
       status.oracle = true;
-    } else if (hands && !autopilot) {
-      // The keyboard used to add raw acceleration in four directions and nothing else: no target, no
-      // return, no proportionality. The phone has a critically damped spring toward a POSITION, and that
-      // is the whole reason it feels decisive — press and the craft goes somewhere definite, let go and
-      // it comes back. The keys now drive the same spring, toward the same ring the finger reaches, with
-      // the acceleration clamped to LAT_ACC exactly as the lunge clamps it, so the reach the fairness
-      // model is built on is unchanged.
+    } else if ((hands || P.keyActive) && !autopilot && !P.done) {
+      springIntegrated = true;
+      P.keyActive = true;
+      // A position spring for keyboard / free-touch steering, kept alive until release has settled.
+      // Integrate it only here: the old common damping/position step advanced the craft a second time.
+      // Acceleration remains capped at LAT_ACC; corridor, corner loads and brake advantage are intact.
       const braking = keys.brake;   // the phone brake button sets keys.brake too, via flyerAction
       if (braking && !P.done) teach('brake', 'brake · you turn harder while slowing');
       const nodeK = rail.nodeAt(P.s);
@@ -2979,28 +3004,35 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       // exactly how far the old acceleration could take you. The feel changes; the reach does not.
       const ringK = Math.max(A(0.35), nodeK.R - A(WALL_MARGIN));
       const ringKX = ringK + (A(TRENCH_HALF - 0.15) - ringK) * trK, ringKY = ringK * (1 - trK);
-      // a key ramps its axis out to the ring and back, so a tap is a small definite move and a hold
-      // carries you to the edge and keeps you there
+      // Ramp only the distance. Independent axis ramps made a new diagonal take half a second,
+      // and a reversal a full second. Normalising also removes the diagonal speed advantage.
       const kx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
       const ky = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
-      const ramp = (cur, want) => cur + clamp(want - cur, -KEY_BACK * dt, KEY_BACK * dt);
-      P.keyX = ramp(P.keyX || 0, kx); P.keyY = ramp(P.keyY || 0, ky);
+      const km = Math.hypot(kx, ky) || 1;
       let tx, ty;
       if (stick) {                               // a touch device in free flight: proportional, as before
         const R0 = 60;
         tx = clamp(touch.dx / R0, -1, 1) * ringKX; ty = clamp(-touch.dy / R0, -1, 1) * ringKY;
-      } else { tx = P.keyX * ringKX; ty = P.keyY * ringKY; }
+      }
       const accK = A(LAT_ACC) * (braking ? BRAKE_TURN : 1);
       const wK = braking ? KEY_W * 1.15 : KEY_W;
+      const gp = trK > 0.5 ? gripAt(nodeK) : { steer: 1, ice: false };
+      const load = trK > 0.5 ? cornerLoad(nodeK) * trK : 0;
+      P.ice = gp.ice && trK > 0.5;
       const stepsK = Math.max(1, Math.ceil(dt / 0.008)), hK = dt / stepsK;
       for (let i = 0; i < stepsK; i++) {
-        let ax = wK * wK * (tx - P.x) - 2 * wK * P.vx;
-        ax = clamp(ax, -accK, accK);
+        if (!stick) {
+          P.keyReach = keyboard ? Math.min(1, (P.keyReach || 0) + KEY_RAMP * hK) : 0;
+          tx = kx / km * P.keyReach * ringKX; ty = ky / km * P.keyReach * ringKY;
+        }
+        let ax = (wK * wK * (tx - P.x) - 2 * wK * P.vx) * gp.steer;
+        ax = clamp(ax, -accK, accK) + load;
         let ay = wK * wK * (ty - P.y) - 2 * wK * P.vy;
         ay = clamp(ay, -accK, accK);
         P.vx += ax * hK; P.vy += ay * hK;
         P.x += P.vx * hK; P.y += P.vy * hK;
       }
+      if (!hands && Math.hypot(P.x, P.y) < A(0.02) && Math.hypot(P.vx, P.vy) < A(0.1)) P.keyActive = false;
     } else if (!P.done) {
       const gz = autopilot ? grazeTarget() : null;
       let [tx, ty] = assistTarget();
@@ -3012,7 +3044,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       P.vx += (tx - P.x) * g * 4 * dt * 2;
       P.vy += (ty - P.y) * g * 4 * dt * 2;
     }
-    if (!(laneMode && !autopilot && !P.done)) {
+    if (!springIntegrated) {
       const nodeT = rail.nodeAt(P.s), trD = clamp(((nodeT.trench || 0) - 0.3) / 0.4, 0, 1);
       const gp = trD > 0.5 ? gripAt(nodeT) : { grip: 1, steer: 1, ice: false };
       P.ice = gp.ice && trD > 0.5;
@@ -3761,8 +3793,11 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
   function draw() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = Math.floor(window.innerWidth * dpr), h = Math.floor(window.innerHeight * dpr);
     const W = window.innerWidth, H = window.innerHeight;
+    // Bound fragment work on big / Retina monitors without reducing HUD or DOM text resolution.
+    // At most a 1080p scene, independent of display size; phones keep their existing resolution.
+    const sceneDpr = Math.min(dpr, Math.sqrt(1920 * 1080 / Math.max(1, W * H)));
+    const w = Math.max(1, Math.floor(W * sceneDpr)), h = Math.max(1, Math.floor(H * sceneDpr));
     const intro = document.getElementById('intro');
     const showIntro = intro && !intro.hidden;
     if (renderer && rail) {
@@ -3780,7 +3815,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         eye = V.lerp(eye, introPose.eye, k); forward = V.norm(V.lerp(forward, introPose.forward, k));
         up = V.norm(V.lerp(up, introPose.up, k)); shiftX = introPose.shiftX * k; shiftY = introPose.shiftY * k;
       }
-      projM = perspective(cam.fovDraw || cam.fov, w / h, 1, 4000);
+      projM = perspective(cam.fovDraw || cam.fov, W / H, 1, 4000);
       projM[8] = shiftX; projM[9] = shiftY;
       viewM = lookAt(eye, V.add(eye, forward), up);
       // The preview sits far enough out to frame the whole fold, well beyond the flight fog, so push the
@@ -3832,9 +3867,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
       }
     }
-    if (hudCanvas.width !== w || hudCanvas.height !== h) { hudCanvas.width = w; hudCanvas.height = h; }
+    const hudW = Math.max(1, Math.floor(W * dpr)), hudH = Math.max(1, Math.floor(H * dpr));
+    if (hudCanvas.width !== hudW || hudCanvas.height !== hudH) { hudCanvas.width = hudW; hudCanvas.height = hudH; }
     hud.setTransform(dpr, 0, 0, dpr, 0, 0);
-    hud.clearRect(0, 0, w, h);
+    hud.clearRect(0, 0, W, H);
     if (showIntro) return;
     const mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
     const sans = 'system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif';

@@ -1271,3 +1271,68 @@ the whole-campaign chain passed. The chain restores 214/215 side chains, 614,800
 with ranks A/B/S over 6.6 minutes. No flight physics or flight-camera constants changed.
 The artifact-wrapper phone run also passed all touch, menu, ghost, import and completion
 checks. The rebuilt standalone and `docs/index.html` are byte-identical.
+
+## Keyboard diagonals and large-screen responsiveness (2026-09-14)
+
+Reported: diagonal input on PCs feels unreliable, and larger windows get laggier.
+There were several actual control bugs, not just a sensitivity setting:
+
+- Coarse-pointer detection sent keyboard events into `laneSwipe`, so a touchscreen PC
+  holding Right+Up only lunged upward: the last key won.
+- A was listed in the steering map but intercepted by the autopilot shortcut.
+- The separate axis ramps survived both release and restart. Adding a second axis
+  ramped it from zero; reversing a full axis took a second just to reverse the target.
+- The keyboard spring integrated position in its substeps, then the common lateral
+  step damped and integrated it again. Its nominal acceleration limit was misleading.
+
+Keyboard now always uses held directions, independent of touch mode. Physical key state
+keeps arrow/WASD aliases independent and avoids mistaking overlapping aliases for a
+double-tap. Shift/Space boost aliases also release independently. WASD is usable; autopilot
+is now **P**, with the shipping help and README updated. Blur, hidden-page, pause and restart
+clear held inputs. Touch can take over while the keyboard spring is returning.
+
+The normalized direction responds immediately; only reach ramps (`KEY_RAMP=3`). The
+spring uses `KEY_W=20`, integrates once in ≤8 ms substeps, and stays active on release
+until settled. The 44 Å/s² steering limit, brake advantage, corner forces, corridor,
+camera and forward-speed tuning remain in place. Prior `KEY_BACK` measurements above
+included the double integration and stale state, so they do not calibrate this spring.
+
+In the opening bundle at 60 Hz, a 100 ms press moves 0.14 Å and a 300 ms hold moves
+0.90 Å. A 300 ms diagonal moves (0.64, 0.64) Å: the same total reach. Adding Up to held
+Right produces 0.50 Å upward movement within 150 ms. Releasing Right returns that axis
+to 0.05 Å within 300 ms while Up stays at 1.44 Å. A reversal crosses centre by 400 ms
+without bypassing the acceleration limit. The same diagonal at 30/60/120 Hz differs by
+only 0.01 Å per axis. Desktop and coarse-pointer PC results agree.
+
+`FLYER_CONTROLS=1 node tools/visual_test.js` adds 23 checks per pointer mode covering
+all diagonals, added/released axes, reversal, overlapping aliases, repeat, opposition,
+reset/blur/hidden/pause, boost, P, touch takeover and frame-rate consistency. It fails
+against the prior build and passes against this one. These tests step the real game
+and dispatch DOM keyboard events; they do not measure physical keyboard latency.
+
+Rendering now bounds the scene to 2,073,600 pixels, preserving aspect ratio, while
+keeping HUD/DOM text at its prior resolution. A 1920×1080 viewport at DPR 2 previously
+rendered 3840×2160; it now renders a 1920×1080 scene with a 3840×2160 HUD. This trades
+some edge sharpness on large displays for responsiveness, without changing geometry,
+lighting, near cuts, culling or AO. Unlit fragments skip lighting, and near cuts happen
+before lighting work. No adaptive resolution or additional extensions are introduced.
+
+Sequential SwiftShader frozen-draw medians (55 draws, 5 warmups, one-pixel readback),
+1920×1080 at DPR 2, using the same camera state and desktop geometry:
+
+| Fold | Before | After |
+|---|---:|---:|
+| Bundle | 47.7 ms | 22.4 ms |
+| 1LDG | 97.8 ms | 52.6 ms |
+| 1M56 | 153.9 ms | 86.2 ms |
+
+That is 44–53% less render time in this software-rendered benchmark, not a prediction
+of hardware frame rates. Use `FLYER_BENCH=1 FLYER_VIEWPORT=1920,1080,2 node tools/visual_test.js`
+to repeat it. The regular visual suite checks live Retina/4K/ultrawide/small-window
+resizing and the separate HUD dimensions, in addition to the existing phone viewpoints.
+At the unchanged 390×760 phone resolution, medians were 12.1→13.0, 27.1→26.8 and
+54.1→51.0 ms respectively: roughly the same cost, not the large-screen speedup.
+
+The six required gates pass: autopilot, oracle, fairness, phone inputs, no-WebGL fallback
+and the complete campaign. Campaign results remain 214/215, 614,800 points, A/B/S ranks.
+The keyboard and visual suites pass too. The single-file builds are regenerated.

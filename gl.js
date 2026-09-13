@@ -17,19 +17,6 @@
     varying vec3 vNrm, vCol, vPos;
     uniform vec3 uLight; uniform vec3 uFog; uniform vec2 uFogRange; uniform float uAmbient; uniform float uUnlit; uniform float uAlpha; uniform vec3 uNear;
     void main() {
-      vec3 n = normalize(vNrm);
-      if (!gl_FrontFacing) n = -n;
-      vec3 v = normalize(-vPos);
-      if (dot(n, v) < 0.0) n = -n;
-      float wrap = 0.5;
-      float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
-      vec3 h = normalize(uLight + v);
-      // Fixed world key + broad camera fill: contours stay readable inside the fold. A restrained
-      // satin highlight reveals curvature without turning an atom or the ribbon's edge pure white.
-      float fill = max(0.0, dot(n, v));
-      float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
-      vec3 c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
-      c = mix(c, vCol, uUnlit);
       float d = length(vPos);
       // Geometry right on the lens has to go: a helix ribbon is 0.4 A thick, so a surface a fraction of
       // an angstrom off the camera fills the screen with one flat colour and the player is blind. It is
@@ -38,6 +25,21 @@
       // half-dissolved is television static.
       if (uNear.z > 1.5) { if (d < uNear.y) discard; }
       else if (uNear.z > 0.5) { if (d >= uNear.y) discard; }
+      // Cut hidden fragments before lighting. Unlit effects need none of the normal/specular work.
+      vec3 c = vCol;
+      if (uUnlit < 0.5) {
+        vec3 n = normalize(vNrm);
+        if (!gl_FrontFacing) n = -n;
+        vec3 v = normalize(-vPos);
+        if (dot(n, v) < 0.0) n = -n;
+        float wrap = 0.5;
+        float diff = max(0.0, (dot(n, uLight) + wrap) / (1.0 + wrap));
+        vec3 h = normalize(uLight + v);
+        // Fixed world key + broad camera fill, with the same restrained satin highlight.
+        float fill = max(0.0, dot(n, v));
+        float spec = pow(max(0.0, dot(n, h)), 22.0) * 0.13;
+        c = vCol * (uAmbient + diff * 0.48 + fill * 0.24) + vec3(0.95, 0.97, 1.0) * spec;
+      }
       float f = clamp((d - uFogRange.x) / (uFogRange.y - uFogRange.x), 0.0, 1.0);
       f = f * f * (3.0 - 2.0 * f);
       float na = 1.0;
