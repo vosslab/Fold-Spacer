@@ -82,6 +82,7 @@ These need a headless Chromium (`npx playwright install chromium-headless-shell`
 | `game.js` | everything else: flight, collection, camera, HUD, scoring |
 | `tools/` | build, and the checks above |
 | `PLAYTEST.md` | the engineering log — every measurement, and what was ruled out |
+| `RENDERING.md` | handover for anyone improving the visuals: contracts, dead ends, where the wins are |
 
 `PLAYTEST.md` is the interesting one. It records what was tried and rejected as well as
 what shipped, with the numbers behind each decision.
