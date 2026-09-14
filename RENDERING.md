@@ -40,17 +40,18 @@ the hard problem: everything is the same three colours and lit the same way.
 - linear→smoothstep fog to a flat colour
 - `uNear` — the near-geometry cut, described in §3
 
-Uniforms: `uProj uView uLight uFog uFogRange uAmbient uUnlit uAlpha uNear`. Attributes:
+Uniforms: `uProj uView uModel uLocal uLight uFog uFogRange uAmbient uUnlit uAlpha uNear`. Attributes:
 `aPos aNrm aCol`. That is the whole surface area.
 
 **Correction to the original handover:** the `[0.3, 0.85, 0.45]` light already was fixed in
 world space: `begin()` transforms it by the view matrix. The new term is the soft camera
 fill, which keeps surfaces readable while the world light supplies changing form cues.
 
-**There is no model matrix.** Every mesh is baked in world space and re-uploaded when it
-moves. See §5.
+**The craft and ghost now use a model matrix.** Their local-space meshes are built once;
+only pose uniforms and changed engine colours update. `uLocal` bypasses that transform
+for world-space meshes. The ribbon and side chains retain their exact world-space geometry.
 
-### Draw order, 15 calls a frame
+### Draw order (call count varies with visibility)
 
 ```
 ribbon  (near-solid pass)          ┐ only when something is within the band;
@@ -101,9 +102,10 @@ No additional uniforms or passes. Keep both: the camera fill is necessary inside
 Billboard impostors with an analytic normal in the fragment shader would be both *rounder*
 and cheaper. This does need a new attribute or a second program.
 
-### (d) A model matrix
+### (d) A model matrix — implemented for craft and ghost
 
-See §5. This is a performance and cleanliness win, not a looks win, but it unblocks others.
+The existing hull geometry/materials and normal heuristic are baked in local space once.
+The same orthonormal flight basis positions it; gameplay still uses the original craft pose.
 
 ### (e) Ribbon tessellation
 
@@ -176,17 +178,37 @@ replaced by a push along the surface normal by exactly the penetration depth.
 **Large-screen pixel budget (2026-09-14).** The 3D drawing buffer is capped at
 1920 × 1080 pixels in area, preserving the viewport's aspect ratio. This is a fixed
 budget, not a frame-time-dependent resolution switch: no quality pumping during play.
-The HUD keeps its separate, up-to-2× display resolution; DOM controls are unchanged.
+The HUD now has its own 2560 × 1440 pixel-area budget (still up to 2× on smaller views);
+DOM controls remain at native display resolution. This caps the overlay that the first
+performance pass missed: at 2048 × 1152 / DPR 2 it previously redrew 9.4 million pixels,
+and at 4K / DPR 2, 33 million. Canvas labels trade a little Retina sharpness for speed;
+the scene's resolution and all CSS positions stay unchanged.
 Ordinary phone viewports stay at their previous resolution. The scene is upscaled on
 larger / Retina displays, trading some fine-edge sharpness for responsiveness. Geometry,
 AO, lighting, near cuts and strand culling are unchanged. The shader now discards cut
 fragments before lighting and skips lighting entirely on unlit effects.
 
-- **No model matrix.** `VS` has only `uProj` and `uView`; every vertex is world-space. The
-  craft is rebuilt from scratch and re-uploaded **every frame** (`buildCraft`), and since
-  the ghost was added, twice. So are the fx quads and the target posts. Adding `uModel`
-  would make the craft a static mesh with a transform, and is the prerequisite for any
-  instancing.
+**Retina follow-up (2026-09-14).** Comfort/boost radial gradients are cached in two
+small offscreen canvases, at most 512 pixels along the long axis. Only their opacity
+changes during flight; resizing rebuilds the pair. Near-plane geometry fades are NOT
+part of this cache and are untouched. Side-chain chunks retain their vertex ranges,
+poses and a typed colour array. Pulses upload only colours, frozen frames do nothing,
+and swings rebuild geometry only when the pose changes (including the final f=1).
+Palette changes invalidate colours for every chunk, including stationary/far chunks.
+
+- **Visibility and streaming follow-up.** Ribbon indices are partitioned into conservative
+  bounds over 512-triangle ranges, separately for normal/strand streams. The frustum uses
+  the actual projection/view matrices, including intro shift and FOV. Contiguous visible
+  ranges merge without reordering, and one result is reused for both near passes. Animated
+  side-chain chunks have refreshed whole-chunk bounds. Padding covers floating-point error;
+  no fog-distance or sequence-distance culling. `NO_FRUSTUM` disables both for exact comparisons.
+- **Resident geometry.** A swinging side chain updates only its own position/normal span,
+  with the original sphere/bond builder writing into reusable typed views. Colours still
+  follow the prior chunk-pulse timing. Effects/posts use geometrically growing typed
+  buffers, resident quad indices and active counts; empty/shrinking frames do not reallocate.
+  Spark movement and stable compaction reuse arrays without changing arithmetic or lifetime.
+  Ribbon glows reuse one scratch colour buffer. HUD title truncation is cached by title,
+  font and width; canvas resolution, composition and refresh rate are unchanged in this pass.
 - **The craft's silhouette is built from quads with a normal-flip heuristic**, not a
   consistent winding — which is why global culling could not simply be turned on.
 - **No shadows, no screen-space AO, no post-processing, no framebuffer.** `antialias: true` is requested
@@ -240,6 +262,24 @@ Run builds sequentially on an otherwise quiet machine; `gl.finish()` alone under
 Set `FLYER_VIEWPORT=1920,1080,2` to benchmark a large 2×-DPI desktop instead. The output
 includes actual drawing-buffer dimensions. The regular visual suite also checks live
 resizing through Retina, 4K, ultrawide and small windows, with separate HUD dimensions.
+`FLYER_PROFILE=1 FLYER_VIEWPORT=2048,1152,2 node tools/visual_test.js /tmp/fold-profile`
+adds moving-frame measurements, separately reporting update/upload CPU time and bytes,
+then draw times that wait for BOTH WebGL and 2D canvas readback. It saves profile.json
+and a screenshot. The older GL-only frozen benchmark missed the large HUD's deferred
+rasterization cost. Neither benchmark measures real display FPS: readback adds stalls
+and software rendering differs from a Mac GPU. Compare the same harness and viewport
+against both builds, sequentially. See PLAYTEST.md for the measured follow-up.
+`node tools/chunk_test.js` checks colour-only uploads, frozen frames, final animation
+poses, palette changes, restart and fold-buffer disposal without a browser.
+`node tools/renderer_test.js` checks conservative bounds, streamed capacity/index reuse,
+partial updates and 16-/32-bit index handling. `FLYER_CULL_TEST=1 node tools/visual_test.js`
+compares full GL pixel buffers with visibility culling enabled/disabled at ten phone/Retina
+flight fixtures. Add `FLYER_NO_UINT=1` to repeat without the optional index extension.
+`FLYER_DETERMINISTIC=1` fixes the random seed for before/after screenshot comparisons.
+The frozen benchmark now pauses gameplay explicitly: `frame(0)` alone still spawns exhaust
+without aging it, so repeated zero-time updates are not a valid frozen-scene benchmark.
+Camera history arrays are collected only in headless tests or with `CAMERA_DIAGNOSTICS=true`;
+the current camera-turn value and all camera/comfort calculations remain live during play.
 `FLYER_CONTROLS=1 node tools/visual_test.js` checks physical-key combinations and movement
 at 30/60/120 Hz on both desktop and coarse-pointer PCs, without wall-time-dependent input.
 

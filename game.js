@@ -226,6 +226,7 @@
       // Phone fill-rate is precious: spend geometry on the round profile, retain the measured five
       // samples per residue there, and use the finer longitudinal contour on a larger desktop view.
       ribbonGeom = buildRibbon(ca, ss, rail.axis, { subdivisions: TOUCH || window.innerWidth < 640 ? 5 : 8 });
+      ribbonGeom.spatial = true;
       ribbonMesh = renderer.upload(ribbonGeom, ribbonMesh);
     }
     buildRibbonGrid(); buildRibFrames(); // surfaceDist is a weak diagnostic; ribbonPenetration is the reliable one
@@ -828,6 +829,9 @@
 
   const newGeom = () => ({ pos: [], nrm: [], col: [], idx: [] });
   const uploadGeom = (g, m) => renderer.upload({ pos: new Float32Array(g.pos), nrm: new Float32Array(g.nrm), col: new Float32Array(g.col), idx: new Uint32Array(g.idx) }, m);
+  function floatWriter(data) {
+    return { data, length: 0, push(x, y, z) { this.data[this.length++] = x; this.data[this.length++] = y; this.data[this.length++] = z; } };
+  }
 
   // ---- chunked side-chain meshes: only chunks that change (animation, pulse near the player) rebuild
   const CHUNK = 20;
@@ -844,19 +848,52 @@
   function rebuildChunk(c) {
     if (!renderer) return;
     const g = newGeom();
-    for (let k = c.lo; k < c.hi; k++) { const b = blocks[k]; pushSideChain(g, b, blockDir(b), visLen(b), blockColour(b), false); }
+    c.ranges = []; c.poses = [];
+    for (let k = c.lo; k < c.hi; k++) {
+      const b = blocks[k], start = g.col.length;
+      pushSideChain(g, b, blockDir(b), visLen(b), blockColour(b), false);
+      c.ranges.push([start, g.col.length]); c.poses.push(b.f);
+    }
     c.mesh = uploadGeom(g, c.mesh);
-    c.dirty = false;
+    c.colours = new Float32Array(g.col);
+    c.positions = new Float32Array(g.pos); c.normals = new Float32Array(g.nrm);
+    c.writers = c.ranges.map(([start, end]) => ({ pos: floatWriter(c.positions.subarray(start, end)),
+      nrm: floatWriter(c.normals.subarray(start, end)), col: { push() {} }, idx: { push() {} } }));
+    renderer.updateBounds(c.mesh, c.positions);
+    c.dirty = false; c.colourTime = P.t; c.colourScheme = scheme;
   }
   function updateChunks() {
     for (const c of chunks) {
-      let need = c.dirty;
+      if (c.dirty) { rebuildChunk(c); continue; }
+      // Same ball-and-stick formulas, but only the moving chain writes its existing
+      // vertex span. Topology and the other nineteen chains never need re-uploading.
+      let moved = false;
+      for (let k = c.lo; k < c.hi; k++) {
+        const j = k - c.lo, b = blocks[k];
+        if (b.f === c.poses[j]) continue;
+        const g = c.writers[j]; g.pos.length = g.nrm.length = 0;
+        pushSideChain(g, b, blockDir(b), visLen(b), blockColour(b), false);
+        renderer.updatePose(c.mesh, g.pos.data, g.nrm.data, c.ranges[j][0] / 3);
+        c.poses[j] = b.f; moved = true;
+      }
+      if (moved) renderer.updateBounds(c.mesh, c.positions);
+      if (!moved && c.colourTime === P.t && c.colourScheme === scheme) continue;
+      let need = moved || c.colourScheme !== scheme;
       if (!need && c.s1 > P.s - A(6) && c.s0 < P.s + A(40)) {
         for (let k = c.lo; k < c.hi && !need; k++) { const b = blocks[k]; if (b.type === 'H' && (!b.judged || (b.anim && b.f < 1))) need = true; }
       } else if (!need) {
         for (let k = c.lo; k < c.hi && !need; k++) { const b = blocks[k]; if (b.anim && b.f < 1) need = true; }
       }
-      if (need) rebuildChunk(c);
+      if (need && renderer) {
+        for (let k = c.lo; k < c.hi; k++) {
+          const col = blockColour(blocks[k]), [start, end] = c.ranges[k - c.lo];
+          for (let j = start; j < end; j += 3) {
+            c.colours[j] = col[0]; c.colours[j + 1] = col[1]; c.colours[j + 2] = col[2];
+          }
+        }
+        renderer.updateColours(c.mesh, c.colours, 0);
+        c.colourTime = P.t; c.colourScheme = scheme;
+      }
     }
   }
   function rebuildBlockMesh() { for (const c of chunks) c.dirty = true; }
@@ -938,38 +975,62 @@
   }
   let engineCol = [255, 160, 70];
   const CRAFT_SC = A(0.024); // model unit -> world: 34 units long ≈ 0.8 Å, wings ±0.28 Å
-  function buildCraft(o, t, u, r, accent) {
-    const centre = V.add(o, V.scale(u, 1.6 * CRAFT_SC));
-    const F = craftFaces(o, t, u, r, accent, CRAFT_SC);
-    const lit = newGeom(), glow = newGeom();
-    for (const f of F) {
-      let cen = [0, 0, 0]; for (const q of f.v) cen = V.add(cen, q); cen = V.scale(cen, 1 / f.v.length);
-      let n = V.norm(V.cross(V.sub(f.v[1], f.v[0]), V.sub(f.v[2], f.v[0])));
-      if (V.dot(n, V.sub(cen, centre)) < 0) n = V.scale(n, -1);
-      const g = f.glow ? glow : lit, col = [f.c[0] / 255, f.c[1] / 255, f.c[2] / 255];
-      const base = g.pos.length / 3;
-      for (const q of f.v) { g.pos.push(q[0], q[1], q[2]); g.nrm.push(n[0], n[1], n[2]); g.col.push(col[0], col[1], col[2]); }
-      for (let k = 1; k < f.v.length - 1; k++) g.idx.push(base, base + k, base + k + 1);
+  function placeCraft(mesh, o, t, u, r) {
+    const m = mesh.model || (mesh.model = new Float32Array(16));
+    for (let j = 0; j < 3; j++) { m[j] = r[j]; m[4 + j] = u[j]; m[8 + j] = t[j]; m[12 + j] = o[j]; }
+    m[15] = 1;
+  }
+  function updateEngines(mesh) {
+    const old = mesh.engineColour;
+    if (old && old[0] === engineCol[0] && old[1] === engineCol[1] && old[2] === engineCol[2]) return;
+    mesh.engineColour = engineCol.slice();
+    for (const w of mesh.engineWrites) {
+      for (let j = 0; j < w.col.length; j++) w.col[j] = engineCol[j % 3] / 255;
+      renderer.updateColours(mesh, w.col, w.first);
     }
-    gliderMesh = uploadGeom(lit, gliderMesh);
-    gliderGlowMesh = uploadGeom(glow, gliderGlowMesh);
+  }
+  function buildCraft(o, t, u, r, accent) {
+    if (!gliderMesh) {
+      const centre = [0, 1.6 * CRAFT_SC, 0];
+      const F = craftFaces([0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0], accent, CRAFT_SC);
+      const lit = newGeom(), glow = newGeom();
+      for (const f of F) {
+        let cen = [0, 0, 0]; for (const q of f.v) cen = V.add(cen, q); cen = V.scale(cen, 1 / f.v.length);
+        let n = V.norm(V.cross(V.sub(f.v[1], f.v[0]), V.sub(f.v[2], f.v[0])));
+        if (V.dot(n, V.sub(cen, centre)) < 0) n = V.scale(n, -1);
+        const g = f.glow ? glow : lit, col = [f.c[0] / 255, f.c[1] / 255, f.c[2] / 255];
+        const base = g.pos.length / 3;
+        for (const q of f.v) { g.pos.push(q[0], q[1], q[2]); g.nrm.push(n[0], n[1], n[2]); g.col.push(col[0], col[1], col[2]); }
+        for (let k = 1; k < f.v.length - 1; k++) g.idx.push(base, base + k, base + k + 1);
+      }
+      gliderMesh = uploadGeom(lit, gliderMesh);
+      gliderGlowMesh = uploadGeom(glow, gliderGlowMesh);
+      gliderGlowMesh.engineWrites = [{ first: 0, col: new Float32Array(glow.col.length) }];
+    }
+    placeCraft(gliderMesh, o, t, u, r); gliderGlowMesh.model = gliderMesh.model;
+    updateEngines(gliderGlowMesh);
   }
 
   // The ghost craft, built the same way but into its own buffers so the two can be drawn in one frame.
   function buildGhostCraft(o, t, u, r, accent) {
-    const centre = V.add(o, V.scale(u, 1.6 * CRAFT_SC));
-    const F = craftFaces(o, t, u, r, accent, CRAFT_SC);
-    const lit = newGeom();
-    for (const f of F) {
-      let cen = [0, 0, 0]; for (const q of f.v) cen = V.add(cen, q); cen = V.scale(cen, 1 / f.v.length);
-      let n = V.norm(V.cross(V.sub(f.v[1], f.v[0]), V.sub(f.v[2], f.v[0])));
-      if (V.dot(n, V.sub(cen, centre)) < 0) n = V.scale(n, -1);
-      const col = [f.c[0] / 255, f.c[1] / 255, f.c[2] / 255];
-      const base = lit.pos.length / 3;
-      for (const q of f.v) { lit.pos.push(q[0], q[1], q[2]); lit.nrm.push(n[0], n[1], n[2]); lit.col.push(col[0], col[1], col[2]); }
-      for (let k = 1; k < f.v.length - 1; k++) lit.idx.push(base, base + k, base + k + 1);
+    if (!ghostCraftMesh) {
+      const centre = [0, 1.6 * CRAFT_SC, 0];
+      const F = craftFaces([0, 0, 0], [0, 0, 1], [0, 1, 0], [1, 0, 0], accent, CRAFT_SC);
+      const lit = newGeom(), engineWrites = [];
+      for (const f of F) {
+        let cen = [0, 0, 0]; for (const q of f.v) cen = V.add(cen, q); cen = V.scale(cen, 1 / f.v.length);
+        let n = V.norm(V.cross(V.sub(f.v[1], f.v[0]), V.sub(f.v[2], f.v[0])));
+        if (V.dot(n, V.sub(cen, centre)) < 0) n = V.scale(n, -1);
+        const col = [f.c[0] / 255, f.c[1] / 255, f.c[2] / 255];
+        const base = lit.pos.length / 3;
+        if (f.glow) engineWrites.push({ first: base, col: new Float32Array(f.v.length * 3) });
+        for (const q of f.v) { lit.pos.push(q[0], q[1], q[2]); lit.nrm.push(n[0], n[1], n[2]); lit.col.push(col[0], col[1], col[2]); }
+        for (let k = 1; k < f.v.length - 1; k++) lit.idx.push(base, base + k, base + k + 1);
+      }
+      ghostCraftMesh = uploadGeom(lit, ghostCraftMesh);
+      ghostCraftMesh.engineWrites = engineWrites;
     }
-    ghostCraftMesh = uploadGeom(lit, ghostCraftMesh);
+    placeCraft(ghostCraftMesh, o, t, u, r); updateEngines(ghostCraftMesh);
   }
 
   // Where the ghost was at time tq, as {s, x, y} in world units. Linear between samples.
@@ -1001,6 +1062,7 @@
     // Collection notes are harmonised with the score by sound.hit(), at the scoring event.
   }
   // the ribbon glows white around a hit residue and fades back to its element colour
+  let glowScratch = new Float32Array(0);
   function updateGlows(dt) {
     if (!renderer || !ribbonGeom || !glows.length) return;
     const RING = ribbonGeom.ringSize, SUB = ribbonGeom.subdivisions, n = seq.length;
@@ -1014,15 +1076,50 @@
     }
     for (const [i, glow] of touched) {
       const v0 = i * SUB * RING, cnt = SUB * RING;
-      const base = ribbonGeom.col.subarray(v0 * 3, (v0 + cnt) * 3);
-      const out = new Float32Array(cnt * 3);
-      for (let j = 0; j < out.length; j++) out[j] = base[j] + (glow.col[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base[j]) * glow.k;
+      if (glowScratch.length !== cnt * 3) glowScratch = new Float32Array(cnt * 3);
+      const out = glowScratch;
+      for (let j = 0; j < out.length; j++) {
+        const base = ribbonGeom.col[v0 * 3 + j];
+        out[j] = base + (glow.col[j % 3] * ribbonGeom.ao[v0 + Math.floor(j / 3)] - base) * glow.k;
+      }
       renderer.updateColours(ribbonMesh, out, v0);
     }
     glows = glows.filter((g) => g.age < g.life + 0.05);
   }
 
   // ---------------------------------------------------------------- effects
+  function quadStream() {
+    return { count: 0, capacity: 0, pos: null, nrm: null, col: null, idx: null };
+  }
+  const effectStream = quadStream(), postStream = quadStream();
+  function appendQuad(g, c, ax, ay, colour, alpha) {
+    if (g.count === g.capacity) {
+      const capacity = Math.max(64, g.capacity * 2);
+      for (const key of ['pos', 'nrm', 'col']) {
+        const data = new Float32Array(capacity * 12);
+        if (g[key]) data.set(g[key]); g[key] = data;
+      }
+      g.idx = new Uint32Array(capacity * 6);
+      for (let i = 0; i < capacity; i++) g.idx.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
+      g.capacity = capacity;
+    }
+    const base = g.count++ * 12;
+    for (let j = 0; j < 3; j++) {
+      // Preserve the old vector operation order, including Float32 rounding at upload.
+      g.pos[base + j] = (c[j] - ax[j]) - ay[j];
+      g.pos[base + 3 + j] = (c[j] - ax[j]) + ay[j];
+      g.pos[base + 6 + j] = (c[j] + ax[j]) + ay[j];
+      g.pos[base + 9 + j] = (c[j] + ax[j]) - ay[j];
+      for (let v = 0; v < 12; v += 3) { g.nrm[base + v + j] = cam.fwd[j]; g.col[base + v + j] = colour[j] * alpha; }
+    }
+  }
+  const emptyFloat = new Float32Array(0), emptyIndex = new Uint32Array(0);
+  function uploadQuads(g, mesh) {
+    const n = g.count * 12;
+    return renderer.upload({ pos: g.pos ? g.pos.subarray(0, n) : emptyFloat,
+      nrm: g.nrm ? g.nrm.subarray(0, n) : emptyFloat, col: g.col ? g.col.subarray(0, n) : emptyFloat,
+      idx: g.idx || emptyIndex, indexCount: g.count * 6, stream: true, capacityBytes: g.capacity * 48 }, mesh);
+  }
   function spawnDust(ahead) {
     const ang = Math.random() * Math.PI * 2, rad = A(1.5 + Math.random() * 6);
     return { s: P.s + ahead, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, size: A(0.015 + Math.random() * 0.025) };
@@ -1041,7 +1138,7 @@
 
   function buildFx(dt) {
     if (!renderer) return;
-    const pos = [], nrm = [], col = [], idx = [];
+    effectStream.count = postStream.count = 0;
     const right = V.norm(V.cross(cam.fwd, cam.up)), up = cam.up;
     const quad = (c, ax, ay, colr, alpha) => {
       const dcam = V.len(V.sub(c, cam.pos));
@@ -1051,11 +1148,7 @@
       // both axes by the same factor so a streak stays a streak instead of collapsing into a square.
       const maxHalf = dcam * 0.014, big = Math.max(V.len(ax), V.len(ay));
       if (big > maxHalf) { const k = maxHalf / big; ax = V.scale(ax, k); ay = V.scale(ay, k); }
-      const base = pos.length / 3;
-      const k = [V.sub(V.sub(c, ax), ay), V.add(V.sub(c, ax), ay), V.add(V.add(c, ax), ay), V.sub(V.add(c, ax), ay)];
-      const cc = [colr[0] * alpha, colr[1] * alpha, colr[2] * alpha]; // pre-multiplied: the pass adds light
-      for (const q of k) { pos.push(q[0], q[1], q[2]); nrm.push(cam.fwd[0], cam.fwd[1], cam.fwd[2]); col.push(cc[0], cc[1], cc[2]); }
-      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      appendQuad(effectStream, c, ax, ay, colr, alpha);
     };
     // dust streaks: stretched along the rail tangent by speed
     const stretch = A(P.speed) * 0.035;
@@ -1072,18 +1165,21 @@
     }
     // sparks
     for (const sp of sparks) {
-      sp.age += dt; sp.p = V.add(sp.p, V.scale(sp.v, dt)); sp.v = V.scale(sp.v, Math.exp(-3 * dt));
+      sp.age += dt;
+      const drag = Math.exp(-3 * dt);
+      for (let j = 0; j < 3; j++) { sp.p[j] += sp.v[j] * dt; sp.v[j] *= drag; }
       const a = 1 - sp.age / sp.life;
       if (sp.streak) { // exhaust: stretched along its motion
         const d = V.norm(sp.v), side = V.norm(V.cross(d, V.sub(sp.p, cam.pos)));
         quad(sp.p, V.scale(d, sp.size * 2.5), V.scale(side, sp.size * a), sp.col, 0.9 * a + 0.1);
       } else quad(sp.p, V.scale(right, sp.size * a), V.scale(up, sp.size * a), sp.col, 0.9 * a + 0.1);
     }
-    sparks = sparks.filter((s) => s.age < s.life);
+    let alive = 0;
+    for (const sp of sparks) if (sp.age < sp.life) sparks[alive++] = sp;
+    sparks.length = alive;
     // Target posts on a sheet. The fixed position of a sheet side chain is under the road, so there is no
     // forward cue without these: each uncollected one gets a lit post standing on the deck. They are drawn
     // through the geometry, because on a curved sheet your own road is hidden behind the wall ahead.
-    const pg = { pos: [], nrm: [], col: [], idx: [] };
     const pquad = (c, ax, ay, colr, alpha) => {
       // same discipline as the effect quads: fade out on the lens and never grow past a fixed screen size,
       // or a post you are about to reach becomes a staircase across the view
@@ -1092,10 +1188,7 @@
       if (alpha < 0.02) return;
       const maxHalf = dcam * 0.02, big = Math.max(V.len(ax), V.len(ay));
       if (big > maxHalf) { const k2 = maxHalf / big; ax = V.scale(ax, k2); ay = V.scale(ay, k2); }
-      const base = pg.pos.length / 3;
-      const k = [V.sub(V.sub(c, ax), ay), V.add(V.sub(c, ax), ay), V.add(V.add(c, ax), ay), V.sub(V.add(c, ax), ay)];
-      for (const q of k) { pg.pos.push(q[0], q[1], q[2]); pg.nrm.push(cam.fwd[0], cam.fwd[1], cam.fwd[2]); pg.col.push(colr[0] * alpha, colr[1] * alpha, colr[2] * alpha); }
-      pg.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      appendQuad(postStream, c, ax, ay, colr, alpha);
     };
     for (const b of blocks) {
       if (b.type !== 'H' || b.judged || !b.trench) continue;
@@ -1129,8 +1222,8 @@
         pquad(q, V.scale(nb.r, A(0.07)), V.scale(nb.u, A(0.07)), col, near * puls);
       }
     }
-    postMesh = renderer.upload({ pos: new Float32Array(pg.pos), nrm: new Float32Array(pg.nrm), col: new Float32Array(pg.col), idx: new Uint32Array(pg.idx) }, postMesh);
-    fxMesh = renderer.upload({ pos: new Float32Array(pos), nrm: new Float32Array(nrm), col: new Float32Array(col), idx: new Uint32Array(idx) }, fxMesh);
+    postMesh = uploadQuads(postStream, postMesh);
+    fxMesh = uploadQuads(effectStream, fxMesh);
   }
 
   // ---------------------------------------------------------------- input
@@ -2068,7 +2161,7 @@
         }
       }
     }
-    updateChunks(); // rebuilds only chunks that animate or pulse near the player
+    updateChunks(); // rebuild moving poses; update only colours for nearby pulses
     if (ghostDirty) rebuildGhostMesh();
 
     // finish
@@ -2364,7 +2457,8 @@
         }
       }
     }
-    if (dt > 0 && P.speed > 5 && !P.done) {   // how far off the view axis the craft actually ends up
+    const cameraStats = HEADLESS || window.CAMERA_DIAGNOSTICS;
+    if (cameraStats && dt > 0 && P.speed > 5 && !P.done) {   // how far off the view axis the craft actually ends up
       const o = Math.acos(clamp(V.dot(nf, V.norm(V.sub(pos3, cam.pos))), -1, 1)) * 180 / Math.PI;
       (status.camOff = status.camOff || []).push(Math.round(o));
       if (o > 40) (status.offTrace = status.offTrace || []).push([+P.t.toFixed(2), Math.round(o), Math.round(rail.nodeAt(P.s).res), +(P.x / SC).toFixed(2), +P.speed.toFixed(1), +(P.bendAhead||0).toFixed(0)]);
@@ -2395,8 +2489,8 @@
       P.camPrev = cam.pos.slice();
     }
     let camTurnNow = 0;
-    if (dt > 0) { camTurnNow = Math.acos(clamp(V.dot(prevFwd, cam.fwd), -1, 1)) * 180 / Math.PI / dt; status.camTurn = (status.camTurn || []); if (P.speed > 5 && !P.done) status.camTurn.push(Math.round(camTurnNow)); }
-    if (dt > 0 && P.speed > 5 && !P.done) {  // how fast the rail itself turns, for comparison with the lens
+    if (dt > 0) { camTurnNow = Math.acos(clamp(V.dot(prevFwd, cam.fwd), -1, 1)) * 180 / Math.PI / dt; if (cameraStats && P.speed > 5 && !P.done) (status.camTurn = status.camTurn || []).push(Math.round(camTurnNow)); }
+    if (cameraStats && dt > 0 && P.speed > 5 && !P.done) {  // how fast the rail itself turns, for comparison with the lens
       const t0 = rail.nodeAt(P.s).t, t1 = rail.nodeAt(P.s + A(P.speed * dt)).t;
       (status.railTurn = status.railTurn || []).push(Math.round(Math.acos(clamp(V.dot(t0, t1), -1, 1)) * 180 / Math.PI / dt));
     }
@@ -2424,7 +2518,7 @@
     // Roll — the horizon rotating about the view axis — is the most nausea-inducing camera motion there
     // is, and nothing here had ever measured it. Take the previous up vector into the NEW frame so a
     // change of view direction does not read as roll.
-    if (dt > 0 && P.speed > 5 && !P.done) {
+    if (cameraStats && dt > 0 && P.speed > 5 && !P.done) {
       const rgtN = V.norm(V.cross(cam.fwd, cam.up)), upN = V.norm(V.cross(rgtN, cam.fwd));
       const pu = V.norm(V.perp(prevUp, cam.fwd));
       const ang = Math.atan2(V.dot(pu, rgtN), V.dot(pu, upN)) * 180 / Math.PI;
@@ -2548,10 +2642,31 @@
     return [(cx / cw * 0.5 + 0.5) * W, (1 - (cy / cw * 0.5 + 0.5)) * H];
   }
 
+  // These soft gradients have no fine detail. Rasterize once into small textures,
+  // then vary opacity, avoiding per-pixel gradient evaluation on a Retina-sized
+  // overlay every frame. Their radii remain in CSS pixels.
+  const edgeTints = { width: 0, height: 0, images: [] };
+  const hudLabelCache = { title: null, width: 0, font: '', label: '' };
+  function drawEdgeTint(W, H, kind, alpha) {
+    if (edgeTints.width !== W || edgeTints.height !== H) {
+      edgeTints.width = W; edgeTints.height = H;
+      edgeTints.images = [[0.32, 0.78, '5,8,18'], [0.45, 0.9, '120,190,255']].map(([r0, r1, rgb]) => {
+        const c = document.createElement('canvas'), scale = Math.min(1, 512 / Math.max(W, H));
+        c.width = Math.max(1, Math.round(W * scale)); c.height = Math.max(1, Math.round(H * scale));
+        const ctx = c.getContext('2d'); ctx.setTransform(c.width / W, 0, 0, c.height / H, 0, 0);
+        const g = ctx.createRadialGradient(W / 2, H / 2, H * r0, W / 2, H / 2, H * r1);
+        g.addColorStop(0, `rgba(${rgb},0)`); g.addColorStop(1, `rgba(${rgb},1)`);
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); return c;
+      });
+    }
+    hud.save(); hud.globalAlpha = alpha;
+    hud.drawImage(edgeTints.images[kind], 0, 0, W, H); hud.restore();
+  }
+
   function draw() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const W = window.innerWidth, H = window.innerHeight;
-    // Bound fragment work on big / Retina monitors without reducing HUD or DOM text resolution.
+    // Bound fragment work on big / Retina monitors. DOM controls retain native resolution.
     // At most a 1080p scene, independent of display size; phones keep their existing resolution.
     const sceneDpr = Math.min(dpr, Math.sqrt(1920 * 1080 / Math.max(1, W * H)));
     const w = Math.max(1, Math.floor(W * sceneDpr)), h = Math.max(1, Math.floor(H * sceneDpr));
@@ -2624,9 +2739,12 @@
         renderer.draw(postMesh, true, 1, true, true); // target posts, drawn through the sheet ahead
       }
     }
-    const hudW = Math.max(1, Math.floor(W * dpr)), hudH = Math.max(1, Math.floor(H * dpr));
+    // The overlay used to escape the scene's pixel budget: 9.4 million pixels at
+    // 2048×1152 / 2×, and 33 million at 4K / 2×. Keep a separate, sharper HUD budget.
+    const hudDpr = Math.min(dpr, Math.sqrt(2560 * 1440 / Math.max(1, W * H)));
+    const hudW = Math.max(1, Math.floor(W * hudDpr)), hudH = Math.max(1, Math.floor(H * hudDpr));
     if (hudCanvas.width !== hudW || hudCanvas.height !== hudH) { hudCanvas.width = hudW; hudCanvas.height = hudH; }
-    hud.setTransform(dpr, 0, 0, dpr, 0, 0);
+    hud.setTransform(hudW / W, 0, 0, hudH / H, 0, 0);
     hud.clearRect(0, 0, W, H);
     if (showIntro) return;
     const mono = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
@@ -2635,15 +2753,11 @@
     // comfort vignette: the periphery darkens while the view turns fast
     if (TUNE.vignette && P.camTurn > 30) {
       const k = clamp((P.camTurn - 30) / 90, 0, 1) * 0.55;
-      const g = hud.createRadialGradient(W / 2, H / 2, H * 0.32, W / 2, H / 2, H * 0.78);
-      g.addColorStop(0, 'rgba(5,8,18,0)'); g.addColorStop(1, `rgba(5,8,18,${k})`);
-      hud.fillStyle = g; hud.fillRect(0, 0, W, H);
+      drawEdgeTint(W, H, 0, k);
     }
     // boost tint
     if (P.boostGlow > 0.02) {
-      const g = hud.createRadialGradient(W / 2, H / 2, H * 0.45, W / 2, H / 2, H * 0.9);
-      g.addColorStop(0, 'rgba(120,190,255,0)'); g.addColorStop(1, `rgba(120,190,255,${0.25 * P.boostGlow})`);
-      hud.fillStyle = g; hud.fillRect(0, 0, W, H);
+      drawEdgeTint(W, H, 1, 0.25 * P.boostGlow);
     }
 
     // Where is the craft? A sheet hairpin can carry it right off the screen for a third of a second —
@@ -2710,11 +2824,14 @@
     }
     hud.textAlign = 'right'; hud.fillStyle = TXT;
     hud.font = `500 ${compact ? 12 : 15}px ${sans}`;
-    let foldLabel = fold ? fold.title : '';
+    const foldTitle = fold ? fold.title : '';
     const labelWidth = W * (compact ? 0.54 : 0.50);
-    const fullLabel = foldLabel;
-    while (foldLabel.length > 4 && hud.measureText(foldLabel).width > labelWidth) foldLabel = foldLabel.slice(0, -1);
-    hud.fillText(foldLabel === fullLabel ? foldLabel : foldLabel.trimEnd() + '…', W - M, 19);
+    if (hudLabelCache.title !== foldTitle || hudLabelCache.width !== labelWidth || hudLabelCache.font !== hud.font) {
+      let label = foldTitle;
+      while (label.length > 4 && hud.measureText(label).width > labelWidth) label = label.slice(0, -1);
+      Object.assign(hudLabelCache, { title: foldTitle, width: labelWidth, font: hud.font, label: label === foldTitle ? label : label.trimEnd() + '…' });
+    }
+    hud.fillText(hudLabelCache.label, W - M, 19);
     if (rail) {
       const node = rail.nodeAt(P.s);
       const ri = clamp(Math.round(node.res), 0, seq.length - 1);

@@ -2,7 +2,8 @@
 // UI and renderer checks against the shipped page. No real-time physics: step the actual game at 60 Hz.
 // Usage: node tools/visual_test.js [screenshot-directory] [standalone-page]
 // FLYER_CONTROLS=1: deterministic keyboard regression suite (desktop and coarse-pointer PC).
-// FLYER_BENCH=1 FLYER_VIEWPORT=1920,1080,2: frozen-draw timings, width/height/DPR.
+// FLYER_BENCH=1 FLYER_VIEWPORT=2048,1152,2: frozen-draw timings, width/height/DPR.
+// FLYER_PROFILE=1: moving-frame CPU/upload and GL + HUD readback timings.
 // FLYER_AUDIO=1: audio lifecycle, cofactor moments and an offline-rendered WAV preview.
 const { spawn, spawnSync } = require('child_process');
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -59,6 +60,7 @@ async function checkImportHint(name) {
     ws.onmessage = e => { const d = JSON.parse(e.data), p = pending.get(d.id); if (p) { pending.delete(d.id); d.error ? p.reject(new Error(d.error.message)) : p.resolve(d.result); } };
     await send('Page.enable');
     await send('Page.addScriptToEvaluateOnNewDocument', { source: 'window.requestAnimationFrame=function(){return 0;};window.MARATHON=false;' });
+    if (process.env.FLYER_DETERMINISTIC) await send('Page.addScriptToEvaluateOnNewDocument', {source:'var seed=123456789;Math.random=function(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};'});
     if (process.env.FLYER_AUDIO) {
       await navigate(390,760,false);
       check('welcome creates no audio context and stays silent', await evaluate('!window.flyerSoundStatus().available && !window.flyerSoundStatus().playing'));
@@ -185,6 +187,57 @@ async function checkImportHint(name) {
       }
       return;
     }
+    if (process.env.FLYER_CULL_TEST) {
+      if (process.env.FLYER_NO_UINT) await send('Page.addScriptToEvaluateOnNewDocument',{source:'var ext=WebGLRenderingContext.prototype.getExtension;WebGLRenderingContext.prototype.getExtension=function(n){return n==="OES_element_index_uint"?null:ext.call(this,n);};'});
+      for (const [width,height,dpr] of [[390,760,2],[2048,1152,2]]) {
+        await navigate(width,height,width<640,dpr);
+        await evaluate('document.getElementById("intro").hidden=true;window.flyerAction("start")');
+        for (const [fold,res] of [[0,34],[6,34],[6,72],[8,70],[9,120]]) {
+          const result = await evaluate(`(function(){
+            window.flyerAction('resume');window.loadFoldIndex(${fold});window.setAutopilot(true);
+            for(var i=0;i<9000;i++){window.frame(1/60,true);if(i>240&&window.flyerStatus().res>=${res})break;}
+            window.frame(0);window.flyerAction('pause');
+            var gl=document.getElementById('gl').getContext('webgl'),original=gl.drawElements,triangles=0,calls=0;
+            gl.drawElements=function(mode,count,type,offset){triangles+=count/3;calls++;return original.call(this,mode,count,type,offset);};
+            function capture(disabled){window.NO_FRUSTUM=disabled;triangles=0;calls=0;window.frame(0);var p=new Uint8Array(gl.drawingBufferWidth*gl.drawingBufferHeight*4);gl.readPixels(0,0,gl.drawingBufferWidth,gl.drawingBufferHeight,gl.RGBA,gl.UNSIGNED_BYTE,p);return {p,triangles,calls};}
+            var a=capture(true),b=capture(false),different=0;
+            for(var i=0;i<a.p.length;i++)if(a.p[i]!==b.p[i])different++;
+            gl.drawElements=original;
+            return {different,trianglesBefore:a.triangles,trianglesAfter:b.triangles,callsBefore:a.calls,callsAfter:b.calls,error:window.flyerStatus().err,gl:gl.getError()};
+          })()`);
+          check('pixel-identical visibility culling '+[width,height,dpr,fold,res].join('/'),result.different===0&&!result.error&&result.gl===0,result);
+        }
+      }
+      return;
+    }
+    if (process.env.FLYER_PROFILE) {
+      const [width, height, dpr] = (process.env.FLYER_VIEWPORT || '2048,1152,2').split(',').map(Number);
+      await navigate(width, height, width < 640, dpr);
+      const rows = await evaluate(`(function(){
+        document.getElementById('intro').hidden=true;window.flyerAction('start');
+        var gl=document.getElementById('gl').getContext('webgl'),hud=document.getElementById('hud').getContext('2d');
+        var bytes=0,uploads=0,pixel=new Uint8Array(4),rows=[];
+        for(let name of ['bufferData','bufferSubData']){let original=gl[name];gl[name]=function(){var data=arguments[name==='bufferData'?1:2];bytes+=data.byteLength||0;uploads++;return original.apply(this,arguments);};}
+        function stats(a){a.sort((a,b)=>a-b);return {medianMs:+a[Math.floor(a.length*.5)].toFixed(2),p95Ms:+a[Math.floor(a.length*.95)].toFixed(2)};}
+        for(var fold of [0,6,9]){
+          window.loadFoldIndex(fold);window.setAutopilot(true);
+          for(var i=0;i<600;i++)window.frame(1/60,true);
+          bytes=0;uploads=0;var cpu=[];
+          for(var i=0;i<180;i++){var t=performance.now();window.frame(1/60,true);cpu.push(performance.now()-t);}
+          var traffic={bytesPerFrame:Math.round(bytes/180),uploadsPerFrame:+(uploads/180).toFixed(1)};
+          // Read BOTH canvases: gl.finish alone misses deferred work, and the old benchmark
+          // never waited for the Retina-sized 2D HUD to rasterize. Readback is not actual FPS.
+          var frames=[];
+          for(var i=0;i<45;i++){var t=performance.now();window.frame(1/60);gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);hud.getImageData(0,0,1,1);if(i>=5)frames.push(performance.now()-t);}
+          rows.push({fold:window.flyerStatus().fold,cpu:stats(cpu),frame:stats(frames),...traffic,scene:[gl.drawingBufferWidth,gl.drawingBufferHeight],hud:[hud.canvas.width,hud.canvas.height],error:window.flyerStatus().err,gl:gl.getError()});
+        }return rows;
+      })()`);
+      console.log(JSON.stringify(rows));
+      fs.writeFileSync(path.join(output, 'profile.json'), JSON.stringify(rows, null, 2));
+      check('profile frames have finite timings and no render errors', rows.every(r => !r.error && r.gl===0 && Number.isFinite(r.frame.medianMs)));
+      await shot('profile-desktop');
+      return;
+    }
     if (process.env.FLYER_BENCH) {
       const [width, height, dpr] = (process.env.FLYER_VIEWPORT || '390,760,1').split(',').map(Number);
       await navigate(width, height, width < 640, dpr);
@@ -194,8 +247,10 @@ async function checkImportHint(name) {
           window.loadFoldIndex(fold);window.setAutopilot(true);
           for(var i=0;i<600;i++)window.frame(1/60,true);
           var gl=document.getElementById('gl').getContext('webgl'), times=[], pixel=new Uint8Array(4);
+          window.flyerAction('pause');
           for(var i=0;i<55;i++){var t=performance.now();window.frame(0);gl.readPixels(0,0,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);if(i>=5)times.push(performance.now()-t);}
           times.sort((a,b)=>a-b);rows.push({fold:window.flyerStatus().fold,medianMs:times[25],p95Ms:times[47],width:gl.drawingBufferWidth,height:gl.drawingBufferHeight,gl:gl.getError()});
+          window.flyerAction('resume');
         }return rows;
       })()`);
       console.log(JSON.stringify(bench));
@@ -242,10 +297,12 @@ async function checkImportHint(name) {
     await key('Escape', 'Escape'); await key('Escape', 'Escape', 'keyUp');
     check('Escape closes a keyboard-focused menu', await evaluate('document.getElementById("menurow").hidden && document.getElementById("menubtn").getAttribute("aria-expanded") === "false"'));
     // Resize the SAME running game, including a DPR change and returning to a small window.
-    for (const [width,height,dpr] of [[1920,1080,2],[3840,2160,1],[3440,1440,1],[800,600,1]]) {
+    for (const [width,height,dpr] of [[2048,1152,2],[1920,1080,2],[3840,2160,1],[3840,2160,2],[3440,1440,1],[800,600,1],[390,760,2]]) {
       await send('Emulation.setDeviceMetricsOverride', {width,height,deviceScaleFactor:dpr,mobile:false});
       const size = await evaluate(`(function(){window.frame(0);var g=document.getElementById('gl'),h=document.getElementById('hud');return {w:g.width,h:g.height,hudW:h.width,hudH:h.height,error:window.flyerStatus().err,gl:g.getContext('webgl').getError()};})()`);
-      check('bounded scene / sharp HUD at '+[width,height,dpr].join('×'), size.w*size.h<=1920*1080 && Math.abs(size.w/size.h-width/height)<.003 && size.hudW===width*dpr && size.hudH===height*dpr && !size.error && size.gl===0, size);
+      const hudScale = Math.min(dpr, Math.sqrt(2560*1440/(width*height)));
+      check('bounded scene / higher-resolution HUD at '+[width,height,dpr].join('×'), size.w*size.h<=1920*1080 && Math.abs(size.w/size.h-width/height)<.003 && size.hudW===Math.floor(width*hudScale) && size.hudH===Math.floor(height*hudScale) && !size.error && size.gl===0, size);
+      if (width===2048) await shot('flight-apple-display');
       if (width===1920) await shot('flight-retina');
     }
     for (const [width, height, name] of [[320,568,'small-phone'], [844,390,'landscape']]) {

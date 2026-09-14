@@ -1409,3 +1409,131 @@ The welcome card now says: “Your own protein? Drop a .pdb or .cif file anywher
 Small-height spacing keeps this visible in landscape. Visual tests assert the name,
 invitation bounds on desktop/phone/small-phone/landscape, and the actual File/drop path
 from welcome through Begin. The rename ships with the preceding music/cofactor work.
+
+## Remaining large-monitor lag (2026-09-14)
+
+Reported on an Apple display at 2048 × 1152. Retina scaling was not confirmed, so
+the targeted test uses DPR 2. The first scene cap missed the transparent 2D canvas:
+it still cleared/rasterized 4096 × 2304 pixels each frame, including full-screen radial
+gradients. The old frozen benchmark waited only for WebGL and missed that deferred
+2D work. At a 4K CSS viewport / DPR 2 the HUD grew to 7680 × 4320.
+
+The HUD now keeps a separate 2560 × 1440 area budget, higher than the unchanged
+1920 × 1080 scene budget. At the reported size / DPR 2 this reduces HUD pixels by
+61%. Smaller views, including phone DPR 2, retain their previous resolution. Native
+HTML controls/welcome/help remain sharp; canvas labels trade some Retina sharpness
+for speed. Soft vignette and boost gradients are rasterized once at at most 512 pixels
+along the longer axis and reused with changing opacity. Resize invalidates the cache;
+near-plane ribbon fades are unrelated and unchanged.
+
+Side-chain pulses formerly rebuilt every atom and bond in a 20-block chunk, converting
+all arrays and uploading positions/normals/colours/indices every frame. Chunks now keep
+vertex-colour ranges and reusable typed colour storage. Pulses update only colours;
+swings still use exactly the original geometry builder when their pose changes. This
+also explicitly uploads the final f=1 pose (the old f<1 guard could miss it). Unchanged
+frozen frames upload nothing for chunks. Palette changes update stationary/far chunks
+too, without rebuilding geometry. No controls, physics, score, camera or shader changes.
+
+`FLYER_PROFILE=1 FLYER_VIEWPORT=2048,1152,2 node tools/visual_test.js /tmp/profile [build]`
+warms 600 actual game updates, measures 180 further updates and their GL upload traffic,
+then measures 45 moving draws (5 warmups) with both GL and HUD readback. It saves JSON
+and a screenshot. Sequential before/after SwiftShader measurements:
+
+| Fold | GL + HUD median before → after | Upload bytes/frame before → after |
+|---|---:|---:|
+| Bundle | 127.1 → 74.6 ms | 354,453 → 209,870 |
+| 1LDG | 193.6 → 110.9 ms | 322,676 → 91,277 |
+| 1M56 | 108.4 → 92.0 ms | 384,549 → 169,088 |
+
+This is 15–43% less measured draw time and 41–72% less upload traffic in this sample,
+NOT Mac FPS or physical input latency. Readback itself stalls; canvas readback can also
+change the browser's rasterization strategy. Update-only medians fell from 0.5/0.5/0.6
+to 0.2/0.1/0.1 ms, but individual allocations still produce timing outliers. Verify the
+felt result on the user's actual browser/GPU before claiming the lag is eliminated.
+
+A second sequential pair confirmed bundle 122.4 → 72.7 ms and 1LDG 187.7 → 119.4 ms.
+The largest fold's median was variable: 105.1 → 110.2 ms on that repeat, so it does
+NOT support a consistent median speedup there. Its p95 did improve in both pairs:
+190.9 → 116.8 ms and 192.7 → 130.7 ms. Report reduced slow-frame tails, not a universal
+15–43% FPS improvement. Buffer traffic reductions repeated within rounding/noise.
+
+At unchanged 390 × 760 / DPR 1, the same moving/readback benchmark measured medians
+22.5 → 22.2, 35.3 → 33.9 and 54.1 → 50.1 ms. Phone p95 stayed broadly similar
+(24.3 → 23.9, 38.1 → 42.5, 70.6 → 71.6); the main pixel-budget win is Retina desktop.
+
+The chunk unit test covers pulse-only uploads, frozen frames, swing/final pose, palette,
+restart and fold disposal. Visual checks include live Apple-sized, 4K DPR 1/2, ultrawide,
+small-window and phone DPR 2 resizing. Six matched phone flight captures differ by
+0.13–0.44% of sampled pixels, within the exhaust-particle variation; Apple-sized HUD
+and phone captures were inspected. All six release gates (autopilot, oracle, fairness,
+phone, no-WebGL, whole campaign) pass, as do controls, audio/cofactor, visual and chunk
+checks. Campaign remains 214/215, 614,800 points, with ranks A/B/S.
+
+## Profile-guided optimizations with unchanged visuals/gameplay (2026-09-14)
+
+Approved: implement speed improvements without changing visuals or play. Baseline for
+this pass includes the preceding Retina HUD cap and colour-only chunk pulse updates.
+No further resolution, tessellation, lighting, effect-density or animation-rate cuts.
+
+- Ribbon index streams have conservative bounds over consecutive 512-triangle ranges.
+  Frustum planes come from the actual projection/view matrices, including welcome shift.
+  Visible neighbours merge in their original order; the solid and near-shell passes share
+  the visibility result. Strand-only culling and index order remain intact. Bounds have
+  numerical padding. There is no sequence-distance culling or fog-based disappearance.
+- Side-chain chunks get conservative bounds refreshed after pose changes. A swinging chain
+  uses its own preallocated position/normal views and partial GPU uploads, not a rebuild
+  of all twenty chains. Original sphere/bond formulas and final-pose handling remain.
+- Craft/ghost geometry is built once in local space, with the old normal heuristic/materials.
+  Their existing flight basis supplies a model matrix; engine colours update only on change.
+  The ghost retains its engine faces and original draw treatment. World-space meshes bypass
+  the model transform; physics and the camera still use the same original pose calculations.
+- Effect/post meshes reuse typed storage, geometrically growing GPU capacity, immutable quad
+  indices and active draw counts. Spark position/velocity and stable lifetime compaction reuse
+  their arrays with unchanged arithmetic. Glow uploads reuse scratch storage.
+- HUD title truncation caches unchanged text measurements. Camera history collection is
+  headless/explicit-diagnostic only; live turn/roll/comfort logic remains unchanged.
+
+The proposed full HUD region/layer rewrite is deliberately not part of this pass: preserving
+composition, fading and moving indicators needs separate validation. A small minimap-gradient
+cache experiment had inconsistent readback timings and was removed. The existing HUD pixel
+budget, painter order, gradients and refresh frequency are preserved.
+
+Paused GL-only benchmark, 55 draws / 5 warmups with actual pixel readback, sequential runs:
+
+| Fold | 2048×1152 / DPR 2 before → after | 390×760 / DPR 1 before → after |
+|---|---:|---:|
+| Bundle | 23.8 → 17.0 ms | 11.4 → 7.7 ms |
+| 1LDG | 56.8 → 38.7 ms | 27.6 → 14.4 ms |
+| 1M56 | 89.8 → 51.0 ms | 52.7 → 26.3 ms |
+
+These are 29–43% lower desktop and 32–50% lower phone GL draw times on SwiftShader, not
+physical-device FPS. The moving-frame GL+HUD readback sample at 2048×1152 / DPR 2 measured
+86.6 → 78.6, 133.0 → 100.0 and 104.9 → 55.7 ms. Full-canvas readback changes browser
+rasterization strategy and showed substantial variation during the experiments; use the
+isolated GL timings and exact pixel checks as the cleaner evidence, not a universal FPS claim.
+
+Upload traffic/frame fell 209,928 → 99,701, 91,880 → 82,478 and 169,169 → 103,255 bytes.
+Upload calls/frame fell 20.5 → 7.2, 17.0 → 4.0 and 18.8 → 5.6. Those counters include
+both full and partial uploads, not just allocation calls. CPU-update median/p95 values
+were 0.3/1.6 → 0.1/0.3, 0.1/0.3 → 0.1/0.2 and 0.3/1.1 → 0.1/0.3 ms in that sample.
+
+The benchmark now explicitly pauses gameplay for frozen draws. Profiling uncovered that
+`frame(0)` still spawns exhaust without aging it; repeated zero-time updates therefore
+accumulate particles and are not frozen. Moving-frame benchmarks still use positive time.
+
+`FLYER_CULL_TEST=1` compares every GL colour byte with culling off/on at ten phone/Retina
+viewpoints; all comparisons are identical, also with `FLYER_NO_UINT=1`. At desktop 1LDG
+residue 34, submitted triangles fall roughly 145,000 → 34,000; at residue 72 the saving
+is smaller because much more of the fold is visible. Draw calls can increase, so adjacent
+ranges merge and timings, not just triangle counts, decide whether the change is useful.
+
+With `FLYER_DETERMINISTIC=1`, five sampled phone flight screenshots are pixel-identical
+to the pre-pass build; the sixth differs by one channel value of 1 at one pixel. The
+Apple-sized frame has only negligible channel rounding
+(mean absolute difference 0.00002 on a 0–255 channel scale). Phone and desktop frames were
+also inspected. New renderer/chunk unit tests cover boundary-crossing geometry, buffer
+capacity/index reuse, empty/shrinking streams, 16-/32-bit handling, partial pose/colour
+updates, final poses, reset and disposal. Gameplay, audio and campaign checks retain the
+same outcomes as before; no repository push is part of this request.
+All six release gates pass, along with keyboard, audio/cofactor, visual, exact-culling,
+renderer and chunk regression tests. The final standalone and published-page files match.
