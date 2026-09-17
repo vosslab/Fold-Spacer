@@ -1,6 +1,37 @@
+# === UNIVERSAL === [PROPAGATED - LOCAL EDITS OVERWRITTEN]
+.DS_Store
+/node_modules/
+/.env
+/report_*.txt
+/output*/
+/generated/
+/graphify-out/
+_temp*.?*
+/temp/
+/tests/_temp/
+/OTHER_REPOS/
+/LOCAL_ONLY/
+
+# === TYPESCRIPT === [PROPAGATED - LOCAL EDITS OVERWRITTEN]
+dist/
+dist_*/
+_site/
+*.tsbuildinfo
+.eslintcache
+.prettiercache
+test-results/
+playwright-report/
+blob-report/
+coverage/
+meta.json
+stats.html
+
+# -------------------- LOCAL REPOSITORY RULES --------------------
+# ADD YOUR CUSTOM IGNORES BELOW
+# Propagation preserves this section.
+# ------------------ END LOCAL REPOSITORY RULES ------------------
 # Artifact build output: dist/foldspacer.html is a fragment with no <html> wrapper and is
 # only meaningful inside the publishing host. docs/index.html is the page that ships.
-dist/
 
 # Only the structures the build actually reads are tracked. The rest are candidates that
 # were tried and left out of the campaign (see tools/make_folds.js), and they are 22 MB.
@@ -16,4 +47,3 @@ data/*
 !data/2ABD.pdb
 
 *.pyc
-__pycache__/
