@@ -29,3 +29,16 @@ _temp*
 playwright-report/
 test-results/
 blob-report/
+
+# Established WebGL runtime and browser-driving utilities retain their compact
+# hand-tuned formatting while new TypeScript modules remain formatter-checked.
+/cartoon.js
+/folds.js
+/game.js
+/gl.js
+/music.js
+/parse.js
+/rail.js
+/ss.js
+/tools/*.js
+/docs/main.js

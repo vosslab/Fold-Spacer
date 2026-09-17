@@ -68,8 +68,8 @@
     }
     const dep = authStr.split(',').map((a) => a.trim()).filter(Boolean), cit = jAuth.split(',').map((a) => a.trim()).filter(Boolean);
     const auth = dep.length >= 2 || !cit.length ? dep : cit; // depositors get the credit unless the record names only one
-    meta.authors = auth.map((a) => { const m = /^([A-Z.\-]+\.)([A-Z][A-Za-z'\-()]+)$/.exec(a.replace(/\s+/g, '')); return m ? `${m[2]} ${m[1]}` : a; }); // H.C.WATSON -> WATSON H.C.
-    meta.authors = meta.authors.map((a) => a.replace(/^([A-Z][A-Z'\-()]+)\b/, (w) => w.split(/([\-(])/).map((q) => q.length > 1 ? q[0] + q.slice(1).toLowerCase() : q).join('')));
+    meta.authors = auth.map((a) => { const m = /^([A-Z.-]+\.)([A-Z][A-Za-z'()-]+)$/.exec(a.replace(/\s+/g, '')); return m ? `${m[2]} ${m[1]}` : a; }); // H.C.WATSON -> WATSON H.C.
+    meta.authors = meta.authors.map((a) => a.replace(/^([A-Z][A-Z'()-]+)\b/, (w) => w.split(/([(-])/).map((q) => q.length > 1 ? q[0] + q.slice(1).toLowerCase() : q).join('')));
     if (jRef && !/TO BE PUBLISHED/i.test(jRef)) { const y = /(19|20)\d\d\s*$/.exec(jRef); meta.year = y ? y[0].trim() : ''; meta.journal = jRef.replace(/\s+V\.\s+\d+.*$/, '').trim(); }
     meta.citTitle = jTitl;
     return { atoms, title: title || header || 'Untitled', meta };

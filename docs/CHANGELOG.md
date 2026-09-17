@@ -2,6 +2,11 @@
 
 ### Fixes and Maintenance
 
+- Recovered `game.js` from the latest intact revision after a truncated tool transcript had been
+  written into the file, repaired two invalid diagnostic-path references, and restored a passing
+  TypeScript, ESLint, Prettier, and Node-test gate.
+- Added repository-local lint and formatting boundaries for the established browser runtime,
+  CommonJS diagnostic tools, and generated Pages bundle while keeping new TypeScript source strict.
 - Synchronized shared style guides, tests, and repository support files from the starter template.
 - Synchronized shared style guides, tests, and repository support files from the starter template.
 
