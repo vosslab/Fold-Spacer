@@ -16,6 +16,8 @@
 
 - Moved the upstream WebGL runtime from the repository root to `src/game/runtime.js` and split new
   runner contracts, controls, and lane-overlay drawing into focused TypeScript modules.
+- Removed the obsolete free-flight, virtual-stick, and lunge integration path; the compatibility
+  runtime now follows the stable three-lane controller and is 291 lines smaller than the prior game script.
 - Added an editable protein-trench SVG favicon and included it in local and Pages builds.
 - Kept the full WebGL protein renderer and replaced free-flight steering with stable left, center,
   and right tracks that follow the backbone-local 3D frame.

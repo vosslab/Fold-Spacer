@@ -1790,7 +1790,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (mini) { mini.lit.getContext('2d').clearRect(0, 0, mini.lit.width, mini.lit.height); mini.litTo = -1; }
     dust = []; for (let i = 0; i < 140; i++) dust.push(spawnDust(Math.random() * A(45)));
     P.preview = PREVIEW_T;
-    titleCardT = 4.5;
+    titleCardT = TITLE_CARD_T;
     flash = { text: 'Three lanes | dodge the pulsing side chains', t: 6 };
   }
 
@@ -2745,12 +2745,11 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     heldKeys.clear();
     for (const k of Object.keys(keys)) keys[k] = false;
     P.keyReach = 0; // no stale ramp on the next press; the spring still settles after release
-    tapLast.d = ''; tapLast.t = 0;
   }
   function releaseInputs() {
     clearKeyboard();
     touch.id = touch.boostId = null; touch.dx = touch.dy = 0;
-    touch.boost = touch.hold = false; lunge.active = false;
+    touch.boost = false;
   }
   window.addEventListener('blur', releaseInputs);
   document.addEventListener('visibilitychange', () => { if (document.hidden) { releaseInputs(); lastNow = 0; } });
@@ -2782,7 +2781,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // whole session once. Record the peak in the GAME, where every frame is seen, and let the test read it.
   window.flyerPeakReset = () => { P.peakX = 0; P.peakY = 0; P.peakR = 0; P.peakF = 0; };
   window.flyerSkipPreview = skipPreview;
-  const tapLast = { d: '', t: 0 };
   window.addEventListener('keydown', (e) => { skipPreview();
     ensureSound();
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
@@ -2798,15 +2796,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         e.preventDefault();
         return;
       }
-      // Track physical keys separately: releasing D must not cancel a still-held Right arrow.
-      const token = e.code || e.key;
-      if (!e.repeat && !heldKeys.has(token) && !keys[direction]) {
-        const d = direction, now = performance.now();
-        if ((d === 'left' || d === 'right') && tapLast.d === d && now - tapLast.t < 320) { startRoll(d === 'right' ? 1 : -1); tapLast.t = 0; }
-        else { tapLast.d = d; tapLast.t = now; }
-      }
-      heldKeys.set(token, direction); keys[direction] = true;
-      autopilot = false; lunge.active = false; e.preventDefault(); }
+      e.preventDefault(); return;
+    }
     if (e.key === 'Shift' || e.key === ' ') { heldKeys.set(e.code || e.key, 'boost'); keys.boost = true; e.preventDefault(); }
     if (e.key === 'Control') { heldKeys.set(e.code || e.key, 'brake'); keys.brake = true; e.preventDefault(); }
     if (e.repeat) return;
@@ -2822,15 +2813,10 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     heldKeys.delete(token);
     if (direction) keys[direction] = Array.from(heldKeys.values()).includes(direction);
   });
-  // touch: drag anywhere to steer (virtual stick around the first touch point), a second finger boosts
-  const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, boost: false, boostId: null, t0: 0, hold: false, swiped: false };
-  // lunge mode (Temple Run in a tube): the craft rests in the centre; a swipe snaps it toward that side
-  // of the coil, holds a moment, and it springs back. Swipe toward a side chain as you reach it.
-  let laneMode = true;
-  const LUNGE = { hold: 0.3, wOut: 26, wFollow: 20, wBack: 12, px: 70 };
+  // A horizontal swipe changes exactly one lane; a second finger still engages boost.
+  const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, boost: false, boostId: null };
   // Trench driving, after Fold Racer: a bend throws you at the outside wall with -v²k, your steering is a
   // limited force against it, grip damps what is left, and the wall costs speed rather than bouncing you.
-  const CORNER = 0.35, CORNER_CAP = 0.45; // share of the corner load applied, and of the steering it may eat
   // Walls do not bite. The corridor and the trench slot still CLAMP the craft — you can never fly through
   // the protein — but touching either costs nothing: no bounce, no thud, no shake, no speed penalty, no
   // broken slipstream. Set WALLS_BITE back to true to restore every penalty exactly as it was.
@@ -2845,7 +2831,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   // side chain arrives at 1.0 s, so a player testing the controls reaches the wall at about 0.35 s and is
   // met with a shake, a beep and a speed penalty before anything has happened. For this long the wall
   // still stops the craft, silently.
-  const PREVIEW_T = 3.2, PREVIEW_BLEND = 0.7;
+  const PREVIEW_T = 3.2, PREVIEW_BLEND = 0.7, TITLE_CARD_T = 2.0;
   // Cofactors. Measured across the campaign, every heme, NADH and metal site sits 4.4-5.5 A off the rail
   // against a corridor radius of about 2 A, so none of them can be flown through or collected where they
   // stand. They are landmarks you fly PAST. The gate is therefore placed on the rail, at COF_GATE of the
@@ -2892,9 +2878,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const KICK_DECAY = 1.25;   // s
   // A boost that just raises a number does not read as a boost. Punch the lens when it starts.
   const BOOST_KICK = 4;
-  const BRAKE_TURN = 1.5;    // how much harder the craft turns while braking
-  const KEY_W = 20;          // critically damped, like finger-following; acceleration is still capped
-  const KEY_RAMP = 3.0;      // ramp reach, not direction: a second key / reversal responds immediately
   const COF_SWING = 1.55;    // the craft reaches a gate MOVING outward and must null that before it can
                             // come back, which the from-rest reach formula does not charge it for
   const COF_HEAD = 0.88;     // a gate placed exactly at the reach limit is neither fun nor robust
@@ -2903,53 +2886,24 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const WALL_SEEN = 0.5;    // Å: how close a drawn surface must be for a stop to count as hitting something
   const WALL_GRACE = 1.6;
   const WALL_BUMP = 2.5;   // Å/s of outward speed below which touching the boundary is a graze, not a hit
-  function cornerLoad(node) { // world units/s² along r
-    return clamp(-P.speed * SC * (P.speed * SC) * (node.kr || 0) * CORNER, -A(LAT_ACC) * CORNER_CAP, A(LAT_ACC) * CORNER_CAP);
-  }
-  function gripAt(node) { // glycine runs are ice, as in the racer: less grip, softer steering
-    const ri = clamp(Math.round(node.res), 0, seq.length - 1);
-    let run = 0;
-    for (let k = -2; k <= 2; k++) if (seq[clamp(ri + k, 0, seq.length - 1)] === 'G') run++;
-    return run >= 3 ? { grip: 0.45, steer: 0.7, ice: true } : { grip: 1, steer: 1, ice: false };
-  } // hold at the wall (s), spring stiffness (rad/s), px of drag for a full reach
-  const lunge = { active: false, t: 0, ang: 0 };
-  function laneSwipe(dirOrAngle) {
-    P.keyActive = false;
-    let ang = typeof dirOrAngle === 'number' ? dirOrAngle : { right: 0, up: Math.PI / 2, left: Math.PI, down: -Math.PI / 2 }[dirOrAngle];
-    // snap to an upcoming inward side chain within ~35° of the swipe
-    for (const b of blocks) {
-      const ds = b.s - P.s;
-      if (ds < -A(1) || ds > A(7) || b.type !== 'H' || b.judged) continue;
-      const nb = rail.nodeAt(b.s), rel = V.sub(b.ca, nb.p);
-      const phi = Math.atan2(V.dot(rel, nb.u), V.dot(rel, nb.r));
-      let d = phi - ang; d = Math.atan2(Math.sin(d), Math.cos(d));
-      if (Math.abs(d) < 0.21) { ang = phi; } // a small nudge onto the side chain (~12°); the direction is yours
-      break;
-    }
-    lunge.active = true; lunge.t = 0; lunge.ang = ang;
-    autopilot = false;
-    beep(440, 0.05, 'square', 0.015);
-  }
   const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  laneMode = true;
   const touchTarget = document.getElementById('stage') || glCanvas;
   const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #help, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
   // One handler set for both pointer events (preferred) and touch events (fallback).
   let doneAt = 0;
   function fingerDown(id, x, y) {
-    if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
+    if (P.preview > 0) return;
     if (P.done && doneAt && performance.now() - doneAt > 800) { nextFold(true); return; }
-    if (touch.id === null) { P.keyActive = false; touch.id = id; touch.x0 = x; touch.y0 = y; touch.dx = 0; touch.dy = 0; touch.t0 = performance.now(); touch.hold = false; touch.swiped = false; if (!laneMode) autopilot = false; }
+    if (touch.id === null) { touch.id = id; touch.x0 = x; touch.y0 = y; touch.dx = 0; touch.dy = 0; }
     else if (touch.boostId === null) { touch.boostId = id; touch.boost = true; }
   }
   function fingerMove(id, x, y) {
-    if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
+    if (P.preview > 0) return;
     if (id !== touch.id) return;
     touch.dx = x - touch.x0; touch.dy = y - touch.y0;
-    if (laneMode && lunge.active && Math.hypot(touch.dx, touch.dy) > 12) lunge.active = false; // a new drag takes over from a lunge
   }
   function fingerUp(id) {
-    if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
+    if (P.preview > 0) return;
     if (id === touch.id) {
       const runner = window.foldSpacerRunner;
       const shiftedLane = runner ? runner.shiftSwipe(touch.dx, touch.dy) : null;
@@ -2958,15 +2912,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         autopilot = false;
         beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
       }
-      // a quick flick is a lunge: it holds at the wall for a moment before springing back
-      // A hard, fast, mostly sideways flick is a roll. Phones default to LANE mode, so gating this on free
-      // flight — as the first build did — left the roll unreachable for almost every player. In lane mode
-      // it layers on top of the lunge instead: an ordinary flick lunges, a much harder one lunges AND
-      // rolls. The bar is set well above the ordinary flick so a normal lunge never triggers one.
-      const flickMs = performance.now() - touch.t0;
-      if (!runner && laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
-      if (!runner && rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
-      touch.id = null; touch.dx = 0; touch.dy = 0; touch.hold = false;
+      touch.id = null; touch.dx = 0; touch.dy = 0;
     }
     if (id === touch.boostId) { touch.boostId = null; touch.boost = false; }
   }
@@ -3017,7 +2963,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     else if (name === 'brakeOn') keys.brake = true;
     else if (name === 'brakeOff') keys.brake = false;
     else if (name === 'sound') { setMuted(!muted); if (!muted) ensureSound(); }
-    else if (name === 'lanes') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, release to snap back, flick to lunge' : 'free flight: drag to steer', t: 2.5 }; }
   };
 
   glCanvas.addEventListener('click', () => { skipPreview(); if (P.done && doneAt && performance.now() - doneAt > 800) nextFold(true); });
@@ -3222,16 +3167,14 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     P.boostGlow += (((boosting0 && !P.done) ? 1 : 0) - P.boostGlow) * Math.min(1, 4 * dt);
     P.s = Math.min(rail.length, P.s + A(P.speed) * dt);
 
-    // lateral control
-    const stick = touch.id !== null && !laneMode;
-    const keyboard = keys.left || keys.right || keys.up || keys.down;
-    const hands = keyboard || stick;
-    let springIntegrated = false;
-    if (!keyboard) P.keyReach = 0;
+    // Stable runner control: all player motion resolves to one of three backbone-local lanes.
     const laneEngine = window.foldSpacerLaneEngine;
-    if (laneEngine && !autopilot && !P.done) {
-      springIntegrated = true;
+    if (!P.done && laneEngine) {
       P.lane = laneEngine.getLane();
+      if (autopilot) {
+        const next = blocks.find((b) => b.type === 'H' && !b.judged && b.s >= P.s && b.s - P.s < A(8));
+        if (next && next.lane === P.lane) P.lane = laneEngine.setLane(P.lane === 0 ? -1 : 0);
+      }
       const spacing = laneSpacingAt(rail.nodeAt(P.s));
       const targetX = laneEngine.targetX(spacing);
       const oldX = P.x, oldY = P.y;
@@ -3239,193 +3182,11 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       P.y = laneEngine.easeToward(P.y, 0, 22, dt);
       if (dt > 0) { P.vx = (P.x - oldX) / dt; P.vy = (P.y - oldY) / dt; }
       P.keyActive = false;
-    } else if (laneMode && !keyboard && !P.keyActive && !autopilot && !P.done) {
-      springIntegrated = true;
-      // lunge: a critically damped spring toward the swiped side while holding, then back to the centre
-      // how far the finger can send the craft: a disc inside a helix, the full slot width in a trench
-      const nodeR = rail.nodeAt(P.s);
-      const trR = clamp(((nodeR.trench || 0) - 0.3) / 0.4, 0, 1);
-      const ring = Math.min(A(1.25), 0.75 * (nodeR.R - A(WALL_MARGIN)));
-      const ringX = ring + (A(TRENCH_HALF - 0.15) - ring) * trR, ringY = ring * (1 - trR);
-      let tx = 0, ty = 0, w = LUNGE.wBack;
-      if (lunge.active) {
-        lunge.t += dt;
-        if (lunge.t < LUNGE.hold) { tx = Math.cos(lunge.ang) * ringX; ty = Math.sin(lunge.ang) * ringY; w = LUNGE.wOut; }
-        else if (lunge.t > LUNGE.hold + 0.6 && Math.hypot(P.x, P.y) < A(0.05)) lunge.active = false;
-      } else if (touch.id !== null) {
-        // finger following: the craft goes where the finger points, relative to where it landed
-        let fx = touch.dx / LUNGE.px, fy = -touch.dy / LUNGE.px;
-        const m = Math.hypot(fx, fy); if (m > 1) { fx /= m; fy /= m; }
-        tx = fx * ringX; ty = fy * ringY; w = LUNGE.wFollow;
-      }
-      if (window.LAZY) { tx = Math.cos(P.t * 1.5) * A(window.LAZY); ty = Math.sin(P.t * 1.5) * A(window.LAZY); w = LUNGE.wFollow; } // dev: mindless circling, no aiming
-      const nodeT = rail.nodeAt(P.s);
-      const trD = clamp(((nodeT.trench || 0) - 0.3) / 0.4, 0, 1);
-      const gp = trD > 0.5 ? gripAt(nodeT) : { grip: 1, steer: 1, ice: false };
-      const load = trD > 0.5 ? cornerLoad(nodeT) * trD : 0;
-      P.ice = gp.ice && trD > 0.5;
-      const steps = Math.max(1, Math.ceil(dt / 0.008));
-      const h = dt / steps;
-      for (let i = 0; i < steps; i++) {
-        // your steering is a force, not a teleport: in a bend the corner load eats into it
-        let ax = (w * w * (tx - P.x) - 2 * w * P.vx) * gp.steer;
-        ax = clamp(ax, -A(LAT_ACC), A(LAT_ACC)) + load;
-        P.vx += ax * h;
-        P.vy += (w * w * (ty - P.y) - 2 * w * P.vy) * h;
-        P.x += P.vx * h; P.y += P.vy * h;
-      }
-      if (window.TRACE_LUNGE) (status.traj = status.traj || []).push([+P.t.toFixed(2), +(P.x / SC).toFixed(2), +(P.y / SC).toFixed(2), lunge.active ? 1 : 0, +lunge.t.toFixed(2), +(Math.hypot(P.x, P.y) / SC).toFixed(2), +(tx / SC).toFixed(2)]);
-    } else if (window.CASUAL && !P.done) {
-      // A deliberately imperfect player, for balance measurement. The oracle says what is POSSIBLE; this
-      // says what an ordinary run looks like — reaction delay, a shaky aim, and a share of side chains
-      // simply not gone for. Nothing else in the harness measures whether the game is too hard.
-      const acc = A(LAT_ACC), nodeC = rail.nodeAt(P.s);
-      const lag = +(window.CASUAL_LAG || 0.28), err = +(window.CASUAL_ERR || 0.30), skip = +(window.CASUAL_SKIP || 0.15);
-      let tx = 0, ty = 0, have = false;
-      for (const b of blocks) {
-        const ds = b.s - P.s;
-        if (ds < -A(0.3) || ds > A(14) || b.type !== 'H' || b.judged) continue;
-        if (b.casualSkip === undefined) { let h = Math.sin(b.s * 12.9898) * 43758.5453; b.casualSkip = (h - Math.floor(h)) < skip; }
-        if (b.casualSkip) continue;
-        // aim at where the side chain was `lag` seconds ago in the craft's own frame: a late reaction
-        const nb0 = rail.nodeAt(b.s - A(P.speed * lag)), aimA = b.aim || { x: 1.2, y: 0 };
-        const mid = V.add(nb0.p, V.add(V.scale(nb0.r, A(aimA.x)), V.scale(nb0.u, A(aimA.y))));
-        const relW = V.sub(mid, nodeC.p);
-        let jx = Math.sin(b.s * 7.13) * err, jy = Math.cos(b.s * 3.71) * err;
-        tx = V.dot(relW, nodeC.r) + A(jx); ty = V.dot(relW, nodeC.u) + A(jy); have = ds; break;
-      }
-      if (!have) { const [ax2, ay2] = assistTarget(); tx = ax2; ty = ay2; }
-      const vdx = (tx - P.x) / 0.16, vdy = (ty - P.y) / 0.16;
-      if (dt > 0) {
-        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
-      }
-      status.casual = true;
-    } else if (window.ORACLE && !P.done) {
-      // Oracle player: perfect knowledge, human limits (36 Å/s² per axis with the same damping).
-      // Aims for the nearest point on the next inward side chain's stem; between side chains, dodges sheet side chains.
-      const acc = A(LAT_ACC), nodeO = rail.nodeAt(P.s);
-      let tx = 0, ty = 0, have = false;
-      for (const b of blocks) {
-        const ds = b.s - P.s;
-        if (ds < -A(0.3) || ds > A(14) || b.type !== 'H' || b.judged) continue;
-        // far away: aim by the stem's angle in its own frame (robust to rail bends between here and there);
-        // close in: aim at the stem's true position in space seen from the current cross-section. Blend over the last 6 Å.
-        const nb0 = rail.nodeAt(b.s), aimA = b.aim || { x: 1.2, y: 0 };
-        const mid = V.add(nb0.p, V.add(V.scale(nb0.r, A(aimA.x)), V.scale(nb0.u, A(aimA.y))));
-        const nb = nb0, relF = V.sub(mid, nb.p);
-        const fx = V.dot(relF, nb.r), fy = V.dot(relF, nb.u);
-        const relW = V.sub(mid, nodeO.p);
-        const wx = V.dot(relW, nodeO.r), wy = V.dot(relW, nodeO.u);
-        const wgt = clamp(1 - ds / A(6), 0, 1);
-        tx = fx + (wx - fx) * wgt; ty = fy + (wy - fy) * wgt; have = ds; break;
-      }
-      // A cofactor gate competes with the next side chain: whichever is nearer along the rail wins. The
-      // oracle exists to prove what a perfect player can reach, so if it cannot claim a cofactor the gate
-      // is misplaced and the fairness check should say so.
-      for (const c of cofs) {
-        const ds = c.s - P.s;
-        if (c.judged || ds < -A(0.3) || ds > A(14)) continue;
-        // A gate is worth several side chains, so a greedy nearest-target oracle will happily trade one
-        // away — which drops a flawless run from S to A. The gate is a detour taken ON THE WAY, so only
-        // divert when the next side chain is far enough behind it to still be caught afterwards.
-        if (have !== false && have <= ds) continue;
-        const nb0 = rail.nodeAt(c.s);
-        const gp = V.add(nb0.p, V.add(V.scale(nb0.r, A(c.dx * c.off)), V.scale(nb0.u, A(c.dy * c.off))));
-        const relW = V.sub(gp, nodeO.p);
-        tx = V.dot(relW, nodeO.r); ty = V.dot(relW, nodeO.u); have = ds;
-      }
-      if (!have) { const [ax2, ay2] = assistTarget(); tx = ax2; ty = ay2; }
-      // Bang-bang toward a desired velocity, limited like key input. The time constant tightens as the
-      // side chain comes up: a fixed 0.1 s leaves the oracle arriving a few hundredths of an angstrom
-      // off, which is the whole reason it was dropping perfects it should have had. The acceleration is
-      // still clamped to the human limit, so this stays a feasible line rather than a cheat.
-      // The slipstream and the perfect-kick can carry the craft past the speed the fairness model
-      // guarantees a crossing at, and then a side chain it should have had goes by unreachable — which is
-      // exactly what happened on 1QJ8. A perfect player eases off for a crossing they cannot otherwise
-      // make, so the oracle does too; this is the benchmark for "flawless", not a free ride.
-      P.oracleEase = 1;
-      if (have) {
-        const need = Math.hypot(tx - P.x, ty - P.y) / SC;
-        const vt = LAT_ACC / LAT_DAMP, tAvail = (have / SC) / Math.max(1, P.speed);
-        const can = vt * (tAvail - (1 - Math.exp(-LAT_DAMP * tAvail)) / LAT_DAMP);
-        if (can < need && need > 1e-3) {
-          // the speed at which the same crossing does fit, as a fraction of the current one
-          P.oracleEase = clamp(can / need, 0.35, 1);
-        }
-      }
-      const tau = have ? clamp((have / SC) / Math.max(1, P.speed) * 0.45, 0.05, 0.1) : 0.1;
-      const vdx = (tx - P.x) / tau, vdy = (ty - P.y) / tau;
-      // frame(0) is also the frozen-render diagnostic; 0/0 there must not poison the next flight step.
-      if (dt > 0) {
-        P.vx += clamp((vdx - P.vx) / dt, -acc, acc) * dt;
-        P.vy += clamp((vdy - P.vy) / dt, -acc, acc) * dt;
-      }
-      status.oracle = true;
-    } else if ((hands || P.keyActive) && !autopilot && !P.done) {
-      springIntegrated = true;
-      P.keyActive = true;
-      // A position spring for keyboard / free-touch steering, kept alive until release has settled.
-      // Integrate it only here: the old common damping/position step advanced the craft a second time.
-      // Acceleration remains capped at LAT_ACC; corridor, corner loads and brake advantage are intact.
-      const braking = keys.brake;   // the phone brake button sets keys.brake too, via flyerAction
-      if (braking && !P.done) teach('brake', 'brake · you turn harder while slowing');
-      const nodeK = rail.nodeAt(P.s);
-      const trK = clamp(((nodeK.trench || 0) - 0.3) / 0.4, 0, 1);
-      // The finger's ring is 75% of the corridor, because a thumb needs somewhere to aim short of the
-      // wall. A key is not aiming — it is a direction — so it targets the corridor limit itself, which is
-      // exactly how far the old acceleration could take you. The feel changes; the reach does not.
-      const ringK = Math.max(A(0.35), nodeK.R - A(WALL_MARGIN));
-      const ringKX = ringK + (A(TRENCH_HALF - 0.15) - ringK) * trK, ringKY = ringK * (1 - trK);
-      // Ramp only the distance. Independent axis ramps made a new diagonal take half a second,
-      // and a reversal a full second. Normalising also removes the diagonal speed advantage.
-      const kx = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
-      const ky = (keys.up ? 1 : 0) - (keys.down ? 1 : 0);
-      const km = Math.hypot(kx, ky) || 1;
-      let tx, ty;
-      if (stick) {                               // a touch device in free flight: proportional, as before
-        const R0 = 60;
-        tx = clamp(touch.dx / R0, -1, 1) * ringKX; ty = clamp(-touch.dy / R0, -1, 1) * ringKY;
-      }
-      const accK = A(LAT_ACC) * (braking ? BRAKE_TURN : 1);
-      const wK = braking ? KEY_W * 1.15 : KEY_W;
-      const gp = trK > 0.5 ? gripAt(nodeK) : { steer: 1, ice: false };
-      const load = trK > 0.5 ? cornerLoad(nodeK) * trK : 0;
-      P.ice = gp.ice && trK > 0.5;
-      const stepsK = Math.max(1, Math.ceil(dt / 0.008)), hK = dt / stepsK;
-      for (let i = 0; i < stepsK; i++) {
-        if (!stick) {
-          P.keyReach = keyboard ? Math.min(1, (P.keyReach || 0) + KEY_RAMP * hK) : 0;
-          tx = kx / km * P.keyReach * ringKX; ty = ky / km * P.keyReach * ringKY;
-        }
-        let ax = (wK * wK * (tx - P.x) - 2 * wK * P.vx) * gp.steer;
-        ax = clamp(ax, -accK, accK) + load;
-        let ay = wK * wK * (ty - P.y) - 2 * wK * P.vy;
-        ay = clamp(ay, -accK, accK);
-        P.vx += ax * hK; P.vy += ay * hK;
-        P.x += P.vx * hK; P.y += P.vy * hK;
-      }
-      if (!hands && Math.hypot(P.x, P.y) < A(0.02) && Math.hypot(P.vx, P.vy) < A(0.1)) P.keyActive = false;
     } else if (!P.done) {
-      const gz = autopilot ? grazeTarget() : null;
-      let [tx, ty] = assistTarget();
-      let g = ASSIST_GAIN;
-      if (autopilot) {
-        g = TUNE.gain;
-        if (gz) { tx = gz[0]; ty = gz[1]; }
-      }
-      P.vx += (tx - P.x) * g * 4 * dt * 2;
-      P.vy += (ty - P.y) * g * 4 * dt * 2;
+      P.x += (0 - P.x) * Math.min(1, 12 * dt);
+      P.y += (0 - P.y) * Math.min(1, 12 * dt);
+      P.vx = 0; P.vy = 0;
     }
-    if (!springIntegrated) {
-      const nodeT = rail.nodeAt(P.s), trD = clamp(((nodeT.trench || 0) - 0.3) / 0.4, 0, 1);
-      const gp = trD > 0.5 ? gripAt(nodeT) : { grip: 1, steer: 1, ice: false };
-      P.ice = gp.ice && trD > 0.5;
-      if (trD > 0.5 && !autopilot && !window.ORACLE) P.vx += cornerLoad(nodeT) * trD * dt;
-      P.vx /= (1 + LAT_DAMP * gp.grip * dt); P.vy /= (1 + LAT_DAMP * dt);
-      P.x += P.vx * dt; P.y += P.vy * dt;
-    }
-
     // corridor
     const node = rail.nodeAt(P.s);
     const trench = clamp(((node.trench || 0) - 0.3) / 0.4, 0, 1); // 1 over a β-sheet: trench run, left/right only
@@ -4398,14 +4159,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       runner.drawOverlay({ context: hud, width: W, height: H, compact, currentLane: P.lane,
         timeSeconds: P.t, monoFont: mono, tracks, obstacle: marker });
     }
-    // lunge target dot
-    if (!window.foldSpacerLaneEngine && laneMode && rail && !P.done && lunge.active) {
-      const nd = rail.nodeAt(P.s + A(1.0));
-      const rho = Math.min(A(1.25), 0.75 * (nd.R - A(WALL_MARGIN)));
-      const wp = V.add(nd.p, V.add(V.scale(nd.r, Math.cos(lunge.ang) * rho), V.scale(nd.u, Math.sin(lunge.ang) * rho)));
-      const sp = project(wp, W, H);
-      if (sp) { hud.fillStyle = 'rgba(255,179,71,0.8)'; hud.beginPath(); hud.arc(sp[0], sp[1], 5, 0, Math.PI * 2); hud.fill(); }
-    }
     // turn indicator: a chevron pointing where the path bends over the next 8 Å, growing with sharpness
     if (rail && !P.done && P.bendAhead > 20) {
       const rgt = V.norm(V.cross(cam.fwd, cam.up)), up2 = cam.up;
@@ -4423,7 +4176,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     }
     // fold title card at the start of a fold: what you are flying, and who solved it
     if (titleCardT > 0 && fold && !P.done) {
-      const a = Math.min(1, titleCardT / 0.6) * Math.min(1, (4.5 - titleCardT) / 0.4 + 0.01);
+      const a = Math.min(1, titleCardT / 0.6) * Math.min(1, (TITLE_CARD_T - titleCardT) / 0.4 + 0.01);
       hud.globalAlpha = a; hud.textAlign = 'center'; hud.fillStyle = TXT;
       const y0 = compact ? H * 0.3 : H * 0.36;
       hud.font = `300 ${compact ? 22 : 30}px ${sans}`; hud.fillText(fold.title, W / 2, y0);
@@ -4520,12 +4273,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
 
     // footer (desktop only)
     hud.textAlign = 'center'; hud.font = `11px ${sans}`; hud.fillStyle = 'rgba(219,230,255,0.45)';
-    if (touch.id !== null && !laneMode) { // virtual stick
-      hud.strokeStyle = 'rgba(219,230,255,0.35)'; hud.lineWidth = 1.5;
-      hud.beginPath(); hud.arc(touch.x0, touch.y0, 60, 0, Math.PI * 2); hud.stroke();
-      hud.fillStyle = 'rgba(219,230,255,0.6)';
-      hud.beginPath(); hud.arc(touch.x0 + clamp(touch.dx, -60, 60), touch.y0 + clamp(touch.dy, -60, 60), 14, 0, Math.PI * 2); hud.fill();
-    }
     if (status.err) { hud.fillStyle = 'rgb(255,120,110)'; hud.textAlign = 'left'; hud.font = `12px ${mono}`; hud.fillText(String(status.err), 20, 170); }
   }
 
