@@ -36,7 +36,7 @@ stability of a lane runner without replacing the protein with a generic road sce
 **Consequence.** Future runner work changes navigation and encounter rules while retaining the
 protein renderer and world-space molecular geometry.
 
-**Owner.** [../game.js](../game.js) and [../RENDERING.md](../RENDERING.md)
+**Owner.** [../src/game/runtime.js](../src/game/runtime.js) and [../RENDERING.md](../RENDERING.md)
 
 ### Side chains are the runner obstacles
 
@@ -50,7 +50,7 @@ generic game props.
 **Consequence.** Every side-chain encounter resolves exactly once as cleared or collided. Residue
 identity, colour, bonds, and heavy-atom geometry remain visible.
 
-**Owner.** [../game.js](../game.js)
+**Owner.** [../src/game/runtime.js](../src/game/runtime.js)
 
 ### Rust Wasm owns deterministic lane calculations
 
@@ -65,6 +65,21 @@ duplicating the numeric rules in JavaScript.
 
 **Owner.** [../src/main.ts](../src/main.ts), [../src/wasm_math.ts](../src/wasm_math.ts), and
 [../crates/fold_spacer_math/src/lib.rs](../crates/fold_spacer_math/src/lib.rs)
+
+### New runner systems are TypeScript modules
+
+**Decision.** Keep the original renderer runtime under `src/game/` while moving new runner contracts,
+input decisions, and HUD rendering into focused modules under `src/runner/`.
+
+**Why.** The upstream runtime is complete but monolithic. Typed feature modules reduce coupling now
+and create stable seams for migrating collision, scoring, camera, and rendering behavior later.
+
+**Consequence.** Add new runner behavior to its owning TypeScript module. Keep the compatibility
+runtime limited to protein-world integration and calls across the typed browser boundary.
+
+**Owner.** [../src/runner/contracts.ts](../src/runner/contracts.ts),
+[../src/runner/controller.ts](../src/runner/controller.ts), and
+[../src/runner/overlay.ts](../src/runner/overlay.ts)
 
 ### Script placement follows workflow ownership
 

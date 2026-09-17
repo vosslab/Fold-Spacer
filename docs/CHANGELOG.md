@@ -2,6 +2,8 @@
 
 ### Fixes and Maintenance
 
+- Installed the `wasm32-unknown-unknown` target in both Pages workflow sources before the production
+  build, fixing the GitHub Actions Rust compilation failure.
 - Recovered `game.js` from the latest intact revision after a truncated tool transcript had been
   written into the file, repaired two invalid diagnostic-path references, and restored a passing
   TypeScript, ESLint, Prettier, and Node-test gate.
@@ -12,6 +14,9 @@
 
 ### Changed
 
+- Moved the upstream WebGL runtime from the repository root to `src/game/runtime.js` and split new
+  runner contracts, controls, and lane-overlay drawing into focused TypeScript modules.
+- Added an editable protein-trench SVG favicon and included it in local and Pages builds.
 - Kept the full WebGL protein renderer and replaced free-flight steering with stable left, center,
   and right tracks that follow the backbone-local 3D frame.
 - Turned PDB-derived ball-and-stick side chains into the obstacles: clean passes score, while visible

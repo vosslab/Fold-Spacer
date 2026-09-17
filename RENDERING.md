@@ -27,7 +27,7 @@ the hard problem: everything is the same three colours and lit the same way.
 |---|---|
 | `gl.js` | the entire renderer. One WebGL1 program. |
 | `cartoon.js` | ribbon and baked AO. `RING = 12`; `SUB = 5` on phones/narrow views, 8 on desktop. Larger imports retain the old 10 × 5 budget if the new mesh would cross the 16-bit vertex limit. |
-| `game.js` | builds every other mesh and issues all draws. HUD is a separate 2D canvas. |
+| `src/game/runtime.js` | builds every other mesh and issues all draws. HUD is a separate 2D canvas. |
 
 ### The one shader
 
@@ -97,7 +97,7 @@ No additional uniforms or passes. Keep both: the camera fill is necessary inside
 
 ### (c) Sphere impostors for side-chain atoms
 
-`game.js` draws atoms as an icosphere (`ICO`, 42 verts / 80 faces; `ICO_LOW` for folds over
+`src/game/runtime.js` draws atoms as an icosphere (`ICO`, 42 verts / 80 faces; `ICO_LOW` for folds over
 500 blocks) and bonds as `CYL_N = 6` cylinders. 1M56 has 48 side chains of ~10 atoms each.
 Billboard impostors with an analytic normal in the fragment shader would be both *rounder*
 and cheaper. This does need a new attribute or a second program.

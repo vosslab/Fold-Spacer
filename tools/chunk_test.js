@@ -1,7 +1,7 @@
 // Exercise the production chunk-cache lifecycle with a tiny, deterministic mesh.
 // No browser or GPU needed. Actual ball-and-stick appearance is covered by visual_test.
 const fs = require('fs'), vm = require('vm'), assert = require('assert');
-const source = fs.readFileSync(require('path').join(__dirname, '../game.js'), 'utf8');
+const source = fs.readFileSync(require('path').join(__dirname, '../src/game/runtime.js'), 'utf8');
 const start = source.indexOf('  const newGeom =');
 const end = source.indexOf('  // faint ghosts', start);
 assert(start >= 0 && end > start);

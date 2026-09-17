@@ -33,9 +33,10 @@ Drop a `.pdb` or `.cif` file onto the game to run through another protein struct
 
 ## Architecture
 
-- `game.js`, `gl.js`, `cartoon.js`, and `rail.js` preserve the mature WebGL protein renderer,
+- `src/game/runtime.js`, `gl.js`, `cartoon.js`, and `rail.js` preserve the mature WebGL protein renderer,
   molecular geometry, camera, and flight path.
-- `src/main.ts` is the typed browser boundary for the three-lane controller.
+- `src/runner/` owns typed lane contracts, input decisions, and the projected lane-marker overlay;
+  `src/main.ts` installs that runner at the browser boundary.
 - `crates/fold_spacer_math/` contains deterministic Rust lane interpolation and collision math,
   compiled to `fold_spacer_math.wasm`.
 - `tools/bundle_template.html` owns the responsive interface and scientific explanation.

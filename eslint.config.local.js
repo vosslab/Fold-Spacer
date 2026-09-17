@@ -22,7 +22,7 @@ import globals from "globals";
 const browserSources = [
   "cartoon.js",
   "folds.js",
-  "game.js",
+  "src/game/runtime.js",
   "gl.js",
   "music.js",
   "parse.js",

@@ -12,9 +12,13 @@ origin belongs there too. Rules: [REPO_STYLE.md](REPO_STYLE.md).
 
 - Keep Fold Spacer as a WebGL 3D protein game while changing its control model to a stable,
   Subway Surfers-style three-lane runner.
+- Aim for the trench-run feeling of Atari's 1983 Star Wars arcade game with modern WebGL graphics
+  and Subway Surfers-style lane controls, without losing the protein structure.
 - Keep the protein structure central to the experience; use the actual side chains as the objects
   the player avoids.
 - Use TypeScript for new browser boundaries and Rust/WebAssembly for deterministic calculations.
+- Move cohesive behavior out of the monolithic game script; use TypeScript modules for new game
+  systems instead of preserving `game.js` as-is.
 
 ## Review expectations
 

@@ -34,7 +34,7 @@ blob-report/
 # hand-tuned formatting while new TypeScript modules remain formatter-checked.
 /cartoon.js
 /folds.js
-/game.js
+/src/game/runtime.js
 /gl.js
 /music.js
 /parse.js

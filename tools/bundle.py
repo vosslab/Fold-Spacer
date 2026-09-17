@@ -12,7 +12,7 @@ touchbar, so it must never be what a visitor gets.
 """
 import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-js = ''.join(open(os.path.join(ROOT, f)).read() + '\n' for f in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'music.js', 'game.js'])
+js = ''.join(open(os.path.join(ROOT, f)).read() + '\n' for f in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'music.js', 'src/game/runtime.js'])
 tpl = open(os.path.join(ROOT, 'tools', 'bundle_template.html')).read()
 page = tpl.replace('/*__GAME__*/', js)
 os.makedirs(os.path.join(ROOT, 'dist'), exist_ok=True)

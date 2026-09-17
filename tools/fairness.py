@@ -43,7 +43,7 @@ def travel(t):                      # lateral distance a player can cover from r
 def cruise(progress):
     """The speed the ramp carries you to at that point in the fold.
 
-    These mirror BASE_SPEED and RAMP_SPEED in game.js, which is also what buildCofactors uses to decide
+    These mirror BASE_SPEED and RAMP_SPEED in src/game/runtime.js, which is also what buildCofactors uses to decide
     how far out a gate may sit. If they are changed there they must be changed here, or the audit will
     bless gates the game cannot fly and vice versa.
     """

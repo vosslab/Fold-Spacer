@@ -1293,10 +1293,10 @@
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
     const direction = STEER_CODES[e.code] || ARROWS[e.key];
     if (direction) {
-      const lanes = window.foldSpacerLaneEngine;
-      if (lanes) {
+      const runner = window.foldSpacerRunner;
+      if (runner) {
         if (!e.repeat && (direction === 'left' || direction === 'right')) {
-          P.lane = lanes.shift(direction === 'left' ? -1 : 1);
+          P.lane = runner.shiftDirection(direction);
           autopilot = false;
           beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
         }
@@ -1456,9 +1456,10 @@
   function fingerUp(id) {
     if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
     if (id === touch.id) {
-      const lanes = window.foldSpacerLaneEngine;
-      if (lanes && Math.abs(touch.dx) >= 24 && Math.abs(touch.dx) > Math.abs(touch.dy) * 1.2) {
-        P.lane = lanes.shift(touch.dx < 0 ? -1 : 1);
+      const runner = window.foldSpacerRunner;
+      const shiftedLane = runner ? runner.shiftSwipe(touch.dx, touch.dy) : null;
+      if (shiftedLane !== null) {
+        P.lane = shiftedLane;
         autopilot = false;
         beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
       }
@@ -1468,8 +1469,8 @@
       // it layers on top of the lunge instead: an ordinary flick lunges, a much harder one lunges AND
       // rolls. The bar is set well above the ordinary flick so a normal lunge never triggers one.
       const flickMs = performance.now() - touch.t0;
-      if (!lanes && laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
-      if (!lanes && rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
+      if (!runner && laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
+      if (!runner && rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
       touch.id = null; touch.dx = 0; touch.dy = 0; touch.hold = false;
     }
     if (id === touch.boostId) { touch.boostId = null; touch.boost = false; }
@@ -1733,9 +1734,13 @@
     let springIntegrated = false;
     if (!keyboard) P.keyReach = 0;
     const laneEngine = window.foldSpacerLaneEngine;
-    if (laneEngine && !autopilot && !P.done) {
+    if (laneEngine && !P.done) {
       springIntegrated = true;
       P.lane = laneEngine.getLane();
+      if (autopilot) {
+        const next = blocks.find((b) => b.type === 'H' && !b.judged && b.s >= P.s && b.s - P.s < A(8));
+        if (next && next.lane === P.lane) P.lane = laneEngine.setLane(P.lane === 0 ? -1 : 0);
+      }
       const spacing = laneSpacingAt(rail.nodeAt(P.s));
       const targetX = laneEngine.targetX(spacing);
       const oldX = P.x, oldY = P.y;
@@ -2114,7 +2119,7 @@
     }
 
     // element change resets the helix note ladder
-    if (node.elem !== P.lastElem) { P.lastElem = node.elem; P.helixNote = 0; if (node.elem === 'E' && trench > 0.5 && !P.trenchHinted) { P.trenchHinted = true; flash = { text: 'β-sheet · trench run: weave left and right to collect them all', t: 2.5 }; } }
+    if (node.elem !== P.lastElem) { P.lastElem = node.elem; P.helixNote = 0; if (node.elem === 'E' && trench > 0.5 && !P.trenchHinted) { P.trenchHinted = true; flash = { text: 'beta-sheet | hold your lane or switch to dodge', t: 2.5 }; } }
     sound.advance(dt, P.groove);
     if (!P.done) { P.tAll = (P.tAll || 0) + dt; if ((node.trench || 0) > 0.5) P.tTrench = (P.tTrench || 0) + dt; }
     status.trenchFrac = P.tAll ? +(P.tTrench / P.tAll).toFixed(2) : 0;
@@ -2626,8 +2631,16 @@
       status.peakX = +(P.peakX || 0).toFixed(2); status.peakY = +(P.peakY || 0).toFixed(2);
       status.peakF = +(P.peakF || 0).toFixed(2);
     }
+    status.nextObstacle = null;
+    for (const b of blocks) {
+      const ds = b.s - P.s;
+      if (b.type === 'H' && !b.judged && ds > 0) {
+        status.nextObstacle = { lane: b.lane, residue: `${names[b.i]} ${nums[b.i]}`, distance: +(ds / SC).toFixed(1) };
+        break;
+      }
+    }
     Object.assign(status, { t: P.t, s: P.s / SC, fixed: P.fixed, score: P.score, done: P.done, lim: +(Math.max(node.R - A(WALL_MARGIN), A(CRAFT_R + 0.06)) / SC).toFixed(2),
-      res: Math.round(node.res), elem: node.elem, autopilot, bend: +(P.bendAhead || 0).toFixed(0), speed: P.speed, combo: P.bestCombo, rank: P.rank, missed: P.missed, perfect: P.perfect, trench: +((node.trench || 0)).toFixed(2), runFolds: P.runFolds, lane: laneMode ? (lunge.active ? +(lunge.ang * 180 / Math.PI).toFixed(0) : 'centre') : null, x: +(P.x / SC).toFixed(2), y: +(P.y / SC).toFixed(2) });
+      res: Math.round(node.res), elem: node.elem, autopilot, bend: +(P.bendAhead || 0).toFixed(0), speed: P.speed, combo: P.bestCombo, rank: P.rank, missed: P.missed, perfect: P.perfect, trench: +((node.trench || 0)).toFixed(2), runFolds: P.runFolds, lane: P.lane, laneEngine: window.foldSpacerLaneEngine ? window.foldSpacerLaneEngine.kind : 'loading', x: +(P.x / SC).toFixed(2), y: +(P.y / SC).toFixed(2) });
   }
 
   // ---------------------------------------------------------------- credits
@@ -2817,7 +2830,7 @@
     hud.fillText(P.score.toLocaleString('en-US'), M, 14);
     hud.font = `${compact ? 11 : 12}px ${sans}`;
     hud.fillStyle = 'rgb(170,184,198)';
-    hud.fillText(`${P.fixed} / ${totalHelix} restored`, M, compact ? 49 : 57);
+    hud.fillText(`${P.fixed}/${totalHelix} side chains cleared`, M, compact ? 49 : 57);
     const comboY = compact ? 70 : 80;
     if (P.combo >= 2 && !P.done) {
       hud.fillStyle = ELEM_COL.H; hud.font = `500 ${compact ? 13 : 15}px ${sans}`;
@@ -2878,8 +2891,24 @@
       hud.restore();
     }
     hud.textAlign = 'left';
+    const runner = window.foldSpacerRunner;
+    if (runner && rail && !P.done && P.preview <= 0) {
+      const tracks = [-1, 0, 1].map((lane) => ({ lane, points: Array.from({ length: 18 }, (_, index) => {
+        const nd = rail.nodeAt(P.s + A(1.95 + index * 0.75));
+        return project(V.add(nd.p, V.scale(nd.r, lane * laneSpacingAt(nd))), W, H);
+      }).filter(Boolean) }));
+      const obstacle = blocks.find((b) => b.type === 'H' && !b.judged && b.s > P.s && b.s - P.s < A(20));
+      let marker = null;
+      if (obstacle) {
+        const nd = rail.nodeAt(obstacle.s), spacing = laneSpacingAt(nd);
+        const pips = [-1, 0, 1].map((lane) => project(V.add(nd.p, V.scale(nd.r, lane * spacing)), W, H));
+        if (pips.every(Boolean)) marker = { lane: obstacle.lane, residue: `${names[obstacle.i]} ${nums[obstacle.i]}`, pips };
+      }
+      runner.drawOverlay({ context: hud, width: W, height: H, compact, currentLane: P.lane,
+        timeSeconds: P.t, monoFont: mono, tracks, obstacle: marker });
+    }
     // lunge target dot
-    if (laneMode && rail && !P.done && lunge.active) {
+    if (!window.foldSpacerLaneEngine && laneMode && rail && !P.done && lunge.active) {
       const nd = rail.nodeAt(P.s + A(1.0));
       const rho = Math.min(A(1.25), 0.75 * (nd.R - A(WALL_MARGIN)));
       const wp = V.add(nd.p, V.add(V.scale(nd.r, Math.cos(lunge.ang) * rho), V.scale(nd.u, Math.sin(lunge.ang) * rho)));
@@ -2935,13 +2964,13 @@
         ['fold score', `${P.score - P.base}${best.score !== null && P.score - P.base >= best.score ? '  · new best' : ''}`],
         ['run total', `${P.score} · ${P.runFolds} fold${P.runFolds > 1 ? 's' : ''}`],
         ['time', `${P.t.toFixed(1)} s${best.time !== null && P.t <= best.time + 1e-6 ? '  · best' : ''}`],
-        ['side chains fixed', `${P.fixed} of ${totalHelix} · ${P.perfect} perfect`],
+        ['side chains cleared', `${P.fixed} of ${totalHelix}`],
         ...(cofs.length ? [['cofactors', `${P.cofs} of ${cofs.length} · ${cofs.map((c) => c.name).join(', ')}`]] : []),
         ...(P.runFolds >= FOLDS.length ? [['campaign', `all ${FOLDS.length} folds in one run`]] : []),
         ...(P.rolls ? [['barrel rolls', `${P.rolls}`]] : []),
         ...(P.grooveBest > 0.1 ? [['best slipstream', `${Math.round(P.grooveBest * 100)}%`]] : []),
-        ['helices fully repaired', `${P.helices}`],
-        ['side chains missed', `${P.missed}`],
+        ['elements cleared', `${P.helices}`],
+        ['side-chain collisions', `${P.missed}`],
         ['longest combo', `${P.bestCombo}`],
       ];
       if (isPdb(fold)) {
@@ -3335,7 +3364,8 @@ const FIT_SLEW = 320, CAM_CLEAR = 0.9; // deg/s the lens may swing round the cra
         let best = -1e9, bestX = 0;
         for (let k = -60; k <= 60; k++) {
           const x = half * k / 60, p = V.add(nb.p, V.scale(nb.r, A(x)));
-          if (clear > best) { best = clear; bestX = x; }
+          const clearance = surfaceDist(p);
+          if (clearance > best) { best = clearance; bestX = x; }
         }
         out.sheet.push({ res: nums[b.i], trench: +tr.toFixed(2), clear: +best.toFixed(2), atX: +bestX.toFixed(2) });
       }

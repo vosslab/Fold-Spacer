@@ -37,11 +37,11 @@ for item in filter(None, a.keys.split(',')):
 # screenshot describes a page no player ever sees. Build from the template, exactly as bundle.py does.
 html = open(os.path.join(ROOT, 'tools', 'bundle_template.html')).read()
 inline = ''.join(open(os.path.join(ROOT, js)).read() + '\n'
-                 for js in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'music.js', 'game.js'])
+                 for js in ['parse.js', 'ss.js', 'rail.js', 'cartoon.js', 'gl.js', 'folds.js', 'music.js', 'src/game/runtime.js'])
 shot_frame = int(round((a.shot_at if a.shot_at >= 0 else a.seconds) * 60))
 total_frames = int(round(a.seconds * 60))
 # All of this lands inside the template's single <script>, so it must be plain JS with no script tags.
-# The prelude has to run before game.js reads window.__headless.
+# The prelude has to run before src/game/runtime.js reads window.__headless.
 prelude = """
 window.__headless = true; window.MARATHON = false;
 window.requestAnimationFrame = function() { return 0; };

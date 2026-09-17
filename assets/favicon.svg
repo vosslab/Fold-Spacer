@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <title>Fold Spacer protein trench</title>
+  <rect width="64" height="64" rx="13" fill="#050812"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 52C15 40 15 25 25 12M55 52C49 40 49 25 39 12" stroke="#ebba76" stroke-width="6"/>
+    <path d="M13 52L27 13M32 54V11M51 52L37 13" stroke="#e7edf2" stroke-width="2.5" opacity=".92"/>
+    <path d="M16 43H48M20 32H44M24 22H40" stroke="#8ec7b6" stroke-width="2" opacity=".68"/>
+  </g>
+  <path d="M32 26L39 33L32 40L25 33Z" fill="#ff6e60" stroke="#fff" stroke-width="2"/>
+  <circle cx="11" cy="52" r="4" fill="#80a0f0"/>
+  <circle cx="53" cy="52" r="4" fill="#80a0f0"/>
+</svg>

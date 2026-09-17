@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Fold Spacer</title>
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   html, body { margin: 0; height: 100%; background: #050812; overflow: hidden; }
@@ -31,7 +32,7 @@
 <script src="gl.js"></script>
 <script src="folds.js"></script>
 <script src="music.js"></script>
-<script src="game.js"></script>
+<script src="src/game/runtime.js"></script>
 <script>
   document.querySelectorAll('#touchbar button').forEach(function (b) {
     b.addEventListener('click', function (e) { e.stopPropagation(); window.flyerAction(b.dataset.act); b.blur(); });

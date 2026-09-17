@@ -56,18 +56,21 @@ cargo build \
 	--release \
 	--target-dir target
 cp target/wasm32-unknown-unknown/release/fold_spacer_math.wasm dist/fold_spacer_math.wasm
+cp assets/favicon.svg dist/favicon.svg
 
 # Assemble the established WebGL protein renderer and polished game shell.
 source source_me.sh
 python3 tools/bundle.py
 cp dist/main.js docs/main.js
 cp dist/fold_spacer_math.wasm docs/fold_spacer_math.wasm
+cp assets/favicon.svg docs/favicon.svg
 touch docs/.nojekyll
 touch dist/.nojekyll
 
 test -f dist/index.html
 test -f dist/main.js
 test -f dist/fold_spacer_math.wasm
+test -f dist/favicon.svg
 test -f docs/main.js
 test -f docs/fold_spacer_math.wasm
 
