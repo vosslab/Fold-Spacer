@@ -33,7 +33,7 @@
   const BASE_SPEED = 15, RAMP_SPEED = 6, COMBO_SPEED = 0.3, BOOST_ADD = 12, BRAKE_SPEED = 8;
   const LAT_ACC = 44, LAT_DAMP = 3.2; // lateral agility: terminal lateral speed = LAT_ACC / LAT_DAMP ≈ 13.75 Å/s
   const MAX_CRUISE = BASE_SPEED + RAMP_SPEED + COMBO_SPEED * 12;
-  const FLIP_SCORE = 100, PERFECT_SCORE = 200, HELIX_BONUS = 500, ASSIST_GAIN = 0.3;
+  const FLIP_SCORE = 100, HELIX_BONUS = 500, ASSIST_GAIN = 0.3;
   // inward helix side chains are collected by touching them: distance from the stem (Å)
   const COLLECT_R = 0.35, PERFECT_R = 0.3, CRAFT_R = 0.24;
   const TRENCH_CATCH = 0.40; // a sheet target is caught from further out: the road is wide and the craft small // perfect: the pass goes through the middle of the side chain; craft radius for touching atoms
@@ -89,7 +89,7 @@
   let MARATHON = window.MARATHON !== false; // a run carries on into the next fold with score and combo
   let paused = !HEADLESS && !!document.getElementById('intro'); // the run starts when the player taps or clicks the intro
   let carry = null; // { score, combo, folds }
-  const P = { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false, base: 0, runFolds: 1,
+  const P = { s: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false, base: 0, runFolds: 1,
     score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: 'C', rank: '', slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 };
   const cam = { pos: [0, 0, 0], fwd: [0, 0, 1], up: [0, 1, 0], fov: 76, off: [0, A(0.85)] };
   const keys = {};
@@ -231,7 +231,7 @@
     }
     buildRibbonGrid(); buildRibFrames(); // surfaceDist is a weak diagnostic; ribbonPenetration is the reliable one
     computePar();
-    buildBlocks(); pruneUnfair(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
+    buildBlocks(); pruneUnfair(); arrangeLaneObstacles(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
     buildCofactors();
     buildMinimap();
     {
@@ -276,12 +276,13 @@
     P.keyActive = false;
     P.camPrevPos = null; P.camRot = undefined; P.camSc = undefined; P.camBk = undefined;
     P.duck = undefined; P.duckDir = null; P.camBackS = undefined; P.deckLift = undefined;
-    Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
+    Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
       score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: ss[0], rank: '', base: 0, runFolds: 1, slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 });
     glows = [];
     if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
-    for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
+    if (window.foldSpacerLaneEngine) window.foldSpacerLaneEngine.setLane(0);
+    for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.collided = false; b.minD = Infinity; b.side = 0; b.perfect = false; } b.passed = false; }
     for (const c of cofs) { c.locked = false; c.judged = false; c.announced = false; c.minD = 1e9; }
     ghostRec = []; ghostNext = 0;
     animating = true;
@@ -295,7 +296,7 @@
     dust = []; for (let i = 0; i < 140; i++) dust.push(spawnDust(Math.random() * A(45)));
     P.preview = PREVIEW_T;
     titleCardT = 4.5;
-    flash = { text: laneMode ? 'Drag to steer · fly into pulsing side chains' : 'Arrow keys to steer · fly into pulsing side chains', t: 6 };
+    flash = { text: 'Three lanes | dodge the pulsing side chains', t: 6 };
   }
 
   // ---------------------------------------------------------------- fold minimap
@@ -589,6 +590,39 @@
       }
       if (bestX === null) { blocks.splice(k, 1); totalHelix--; }
       else b.aim = { x: bestX, y: bestY };
+    }
+  }
+
+  function laneSpacingAt(node) {
+    const circular = Math.max(A(0.45), node.R - A(WALL_MARGIN + CRAFT_R + 0.08));
+    const trench = A(Math.max(0.45, Math.min(1.15,
+      Math.min(node.slotL || TRENCH_HALF, node.slotR || TRENCH_HALF) - 0.35)));
+    const mix = clamp(((node.trench || 0) - 0.3) / 0.4, 0, 1);
+    return Math.min(A(1.05), circular * (1 - mix) + trench * mix);
+  }
+
+  function arrangeLaneObstacles() {
+    for (let k = blocks.length - 1; k >= 0; k--) {
+      const b = blocks[k];
+      if (b.type !== 'H') continue;
+      const node = rail.nodeAt(b.s), spacing = laneSpacingAt(node);
+      const first = ((b.i * 7 + Math.abs(b.seg || 0)) % 3) - 1;
+      const order = [first, first === 0 ? -1 : 0, first === 1 ? -1 : 1];
+      let placed = false;
+      for (const lane of order) {
+        const target = V.add(node.p, V.scale(node.r, lane * spacing));
+        const offset = V.perp(V.sub(target, b.ca), b.tan);
+        const need = V.len(offset) / SC;
+        if (need > Math.max(0.65, 1.05 * b.Lvis)) continue;
+        b.lane = lane;
+        b.inw = V.norm(offset);
+        b.inLen = Math.max(0.65, need);
+        b.aim = { x: lane * spacing / SC, y: 0 };
+        b.theta = undefined;
+        placed = true;
+        break;
+      }
+      if (!placed) { blocks.splice(k, 1); totalHelix--; }
     }
   }
 
@@ -916,24 +950,6 @@
     const t = clamp(V.dot(ap, ab) / Math.max(1e-9, V.dot(ab, ab)), 0, 1);
     return V.len(V.sub(p, V.add(a, V.scale(ab, t))));
   }
-  // Closest approach between the craft's path over one frame and a side chain's stem. Sampling the
-  // distance once per frame is not good enough to judge a 0.3 Å band: at 20 Å/s the craft moves 0.33 Å
-  // between frames, so a pass dead through the middle could read as 0.45 Å out and be denied its
-  // perfect purely by where the frames happened to fall — and the verdict changed with the frame rate.
-  function segSegDist(p0, p1, a, b) {
-    const u = V.sub(p1, p0), v = V.sub(b, a), w = V.sub(p0, a);
-    const A0 = V.dot(u, u), B = V.dot(u, v), C = V.dot(v, v), D = V.dot(u, w), E = V.dot(v, w);
-    const den = A0 * C - B * B;
-    let sc, tc;
-    if (den < 1e-9) { sc = 0; tc = C > 1e-9 ? E / C : 0; }
-    else { sc = (B * E - C * D) / den; tc = (A0 * E - B * D) / den; }
-    sc = clamp(sc, 0, 1); tc = clamp(tc, 0, 1);
-    // one clamped end can move the other's optimum, so re-solve each against the clamped partner
-    tc = clamp(C > 1e-9 ? (E + sc * B) / C : 0, 0, 1);
-    sc = clamp(A0 > 1e-9 ? (tc * B - D) / A0 : 0, 0, 1);
-    return V.len(V.sub(V.add(p0, V.scale(u, sc)), V.add(a, V.scale(v, tc))));
-  }
-
   // ---------------------------------------------------------------- the craft
   // Ported from Fold Racer's carFaces: long and low, a wide delta plane, twin nacelles with the
   // engines, a low canopy, a fin, and the accent colour on the wings and a spine stripe.
@@ -1277,6 +1293,16 @@
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
     const direction = STEER_CODES[e.code] || ARROWS[e.key];
     if (direction) {
+      const lanes = window.foldSpacerLaneEngine;
+      if (lanes) {
+        if (!e.repeat && (direction === 'left' || direction === 'right')) {
+          P.lane = lanes.shift(direction === 'left' ? -1 : 1);
+          autopilot = false;
+          beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
+        }
+        e.preventDefault();
+        return;
+      }
       // Track physical keys separately: releasing D must not cancel a still-held Right arrow.
       const token = e.code || e.key;
       if (!e.repeat && !heldKeys.has(token) && !keys[direction]) {
@@ -1290,7 +1316,6 @@
     if (e.key === 'Control') { heldKeys.set(e.code || e.key, 'brake'); keys.brake = true; e.preventDefault(); }
     if (e.repeat) return;
     if (e.key === 'r' || e.key === 'R') reset();
-    if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, flick to lunge · keyboard unchanged' : 'free flight', t: 2.5 }; }
     if (e.key === 'c' || e.key === 'C') { scheme = scheme === 'clustal' ? 'class' : 'clustal'; ghostDirty = true; flash = { text: scheme === 'clustal' ? 'side chains coloured by Clustal X residue type' : 'side chains coloured by chemical class', t: 2 }; }
     if (e.key === 'm' || e.key === 'M') { setMuted(!muted); if (!muted) ensureSound(); }
     if (e.key === 'n' || e.key === 'N') nextFold(P.done);
@@ -1306,7 +1331,7 @@
   const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, boost: false, boostId: null, t0: 0, hold: false, swiped: false };
   // lunge mode (Temple Run in a tube): the craft rests in the centre; a swipe snaps it toward that side
   // of the coil, holds a moment, and it springs back. Swipe toward a side chain as you reach it.
-  let laneMode = false;
+  let laneMode = true;
   const LUNGE = { hold: 0.3, wOut: 26, wFollow: 20, wBack: 12, px: 70 };
   // Trench driving, after Fold Racer: a bend throws you at the outside wall with -v²k, your steering is a
   // limited force against it, grip damps what is left, and the wall costs speed rather than bouncing you.
@@ -1358,7 +1383,6 @@
   // you took too wide. It costs nothing and cannot be spammed through the cooldown.
   const ROLL_T = 0.52;       // s for a full 360
   const ROLL_COOL = 0.85;    // s before another is allowed
-  const ROLL_BONUS = 150;    // for collecting something mid-roll
   // Slipstream. The corridor edge is where the wall is and where the cofactor gates are, so flying out
   // there is already the risky line — this pays for it in the only currency a runner really wants, which
   // is speed. It builds slowly and falls away fast, so it rewards holding a line rather than clipping one.
@@ -1369,7 +1393,6 @@
   // Precision pays in speed. A dead-centre pass gives an immediate, decaying surge, so a chain of perfects
   // feels like accelerating rather than like the same flight with a bigger number on it. It is added to
   // the player's cruise only — the autopilot flies a fixed speed, so acceptance budgets are untouched.
-  const KICK_ADD = 0.40;     // per perfect
   const KICK_SPEED = 6;      // Å/s at full
   const KICK_DECAY = 1.25;   // s
   // A boost that just raises a number does not read as a boost. Punch the lens when it starts.
@@ -1413,7 +1436,7 @@
     beep(440, 0.05, 'square', 0.015);
   }
   const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  laneMode = TOUCH;
+  laneMode = true;
   const touchTarget = document.getElementById('stage') || glCanvas;
   const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #help, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
   // One handler set for both pointer events (preferred) and touch events (fallback).
@@ -1433,14 +1456,20 @@
   function fingerUp(id) {
     if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
     if (id === touch.id) {
+      const lanes = window.foldSpacerLaneEngine;
+      if (lanes && Math.abs(touch.dx) >= 24 && Math.abs(touch.dx) > Math.abs(touch.dy) * 1.2) {
+        P.lane = lanes.shift(touch.dx < 0 ? -1 : 1);
+        autopilot = false;
+        beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
+      }
       // a quick flick is a lunge: it holds at the wall for a moment before springing back
       // A hard, fast, mostly sideways flick is a roll. Phones default to LANE mode, so gating this on free
       // flight — as the first build did — left the roll unreachable for almost every player. In lane mode
       // it layers on top of the lunge instead: an ordinary flick lunges, a much harder one lunges AND
       // rolls. The bar is set well above the ordinary flick so a normal lunge never triggers one.
       const flickMs = performance.now() - touch.t0;
-      if (laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
-      if (rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
+      if (!lanes && laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
+      if (!lanes && rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
       touch.id = null; touch.dx = 0; touch.dy = 0; touch.hold = false;
     }
     if (id === touch.boostId) { touch.boostId = null; touch.boost = false; }
@@ -1703,7 +1732,18 @@
     const hands = keyboard || stick;
     let springIntegrated = false;
     if (!keyboard) P.keyReach = 0;
-    if (laneMode && !keyboard && !P.keyActive && !autopilot && !P.done) {
+    const laneEngine = window.foldSpacerLaneEngine;
+    if (laneEngine && !autopilot && !P.done) {
+      springIntegrated = true;
+      P.lane = laneEngine.getLane();
+      const spacing = laneSpacingAt(rail.nodeAt(P.s));
+      const targetX = laneEngine.targetX(spacing);
+      const oldX = P.x, oldY = P.y;
+      P.x = laneEngine.easeToward(P.x, targetX, 18, dt);
+      P.y = laneEngine.easeToward(P.y, 0, 22, dt);
+      if (dt > 0) { P.vx = (P.x - oldX) / dt; P.vy = (P.y - oldY) / dt; }
+      P.keyActive = false;
+    } else if (laneMode && !keyboard && !P.keyActive && !autopilot && !P.done) {
       springIntegrated = true;
       // lunge: a critically damped spring toward the swiped side while holding, then back to the centre
       // how far the finger can send the craft: a disc inside a helix, the full slot width in a trench
@@ -1963,7 +2003,6 @@
     }
     const pos3 = V.add(node.p, V.add(V.scale(node.r, P.x), V.scale(node.u, P.y)));
     gliderPos = pos3;
-    const prevPos3 = P.prevPos; P.prevPos = pos3;
     // CAMPEN: how deep is the LENS inside a drawn surface, and how far would it have to move toward the
     // rail to get out? That distance is what a correction would cost — compare it with the fit's lurches.
     if (!P.done && window.CAMPEN && P.t > 0.5) {
@@ -2080,13 +2119,12 @@
     if (!P.done) { P.tAll = (P.tAll || 0) + dt; if ((node.trench || 0) > 0.5) P.tTrench = (P.tTrench || 0) + dt; }
     status.trenchFrac = P.tAll ? +(P.tTrench / P.tAll).toFixed(2) : 0;
 
-    // blocks: flips and collections
+    // Side-chain obstacles: contact is a collision; passing cleanly scores.
     animating = false;
     for (const b of blocks) {
       const ds = b.s - P.s;
       if (ds < -A(4) || ds > A(4)) continue;
       const [a, e] = blockSeg(b);
-      const hitR = 0.6 * A(b.hwid) + A(0.45);
       if (b.type === 'H') {
         if (!b.judged && Math.abs(ds) < A(1.5)) {
           const d = segDist(pos3, a, e);                   // distance to the stem line (for 'perfect')
@@ -2094,60 +2132,33 @@
           b.minD = Math.min(b.minD, d);
           const catchR = b.trench ? TRENCH_CATCH : CRAFT_R;
           if ((dt2 < A(catchR) || d < A(COLLECT_R)) && !P.done) {
-            // knocked into place; whether the pass was 'perfect' (through the middle) is judged once you are past it
-            b.judged = true; b.anim = true; ghostDirty = true; b.stemA = a; b.stemE = e; b.pendingPerfect = true;
+            b.judged = true; b.collided = true; b.anim = true; ghostDirty = true;
             if (window.AIMLOG) (status.aimLog = status.aimLog || []).push({ res: nums[b.i],
               aim: b.aim ? [+b.aim.x.toFixed(2), +b.aim.y.toFixed(2)] : null,
               at: [+(P.x / SC).toFixed(2), +(P.y / SC).toFixed(2)], ds: +(ds / SC).toFixed(2),
               d: +(d / SC).toFixed(2), f: +b.f.toFixed(2), sp: +P.speed.toFixed(1) });
-            P.fixed++; P.combo++; P.bestCombo = Math.max(P.bestCombo, P.combo);
-            const mult = 1 + Math.floor(P.combo / 5);
-            const slip = P.groove > 0.5 ? 1 + P.groove : 1;   // the edge line is the risky one; pay for it
-            const pts = Math.round(FLIP_SCORE * mult * slip);
-            P.score += pts;
-            pop(pos3, `+${pts}${mult > 1 ? ' ×' + mult : ''}${slip > 1 ? ' slipstream' : ''}`, slip > 1 ? 'rgb(127,212,193)' : 'rgb(190,140,255)');
-            if (P.rollT > 0 && !P.rollScored) {
-              P.rollScored = true; P.score += ROLL_BONUS;
-              pop(pos3, `barrel roll +${ROLL_BONUS}`, 'rgb(127,212,193)');
-              beep(880, 0.10, 'square', 0.02); beep(1170, 0.14, 'square', 0.018, null, 0.08);
-            }
+            P.missed++; P.combo = 0;
+            P.speed = Math.max(BRAKE_SPEED, P.speed * 0.72);
+            pop(pos3, `${names[b.i]} ${nums[b.i]} | collision`, 'rgb(255,110,96)');
             burst(V.add(b.ca, V.scale(b.inw, A(1.0))), b.real, resColour(seq[b.i]), 5, 5);
             rings.push({ c: b.ca.slice(), axis: b.tan, age: 0, life: 0.4, col: resColour(seq[b.i]) });
-            sound.hit(false); P.helixNote++;
-            impact(pos3, node, resColour(seq[b.i]), false, b.i);
-            const mates = blocks.filter((o) => o.type === 'H' && o.seg === b.seg);
-            if (mates.every((o) => o.judged && o.anim)) {
-              P.helices++; P.score += HELIX_BONUS;
-              pop(pos3, `${b.trench ? 'sheet' : 'helix'} repaired +${HELIX_BONUS}`, 'rgb(255,179,71)');
-              beep(220, 0.7, 'sine', 0.025); beep(277.18, 0.7, 'sine', 0.02); beep(329.63, 0.7, 'sine', 0.02);
-            }
-          }
-        }
-        if (b.pendingPerfect) {
-          if (Math.abs(ds) < A(1.5)) b.minD = Math.min(b.minD, segSegDist(prevPos3 || pos3, pos3, b.stemA, b.stemE));
-          if (ds < -A(1.5) || P.done) {
-            b.pendingPerfect = false;
-            if (b.minD >= A(PERFECT_R))   // dev: which ones a perfect player still cannot pass through
-              (status.nearMiss = status.nearMiss || []).push({ res: nums[b.i], d: +(b.minD / SC).toFixed(2), trench: !!b.trench, ds: +((b.s - P.s) / SC).toFixed(1) });
-            if (b.minD < A(PERFECT_R)) { // through the middle: perfect
-              b.perfect = true; P.perfect++;
-              const mult = 1 + Math.floor(P.combo / 5), extra = (PERFECT_SCORE - FLIP_SCORE) * mult;
-              P.score += extra;
-              pop(pos3, `perfect +${extra}`, 'rgb(255,179,71)');
-              burst(V.add(b.ca, V.scale(b.real, A(1.2))), b.real, [1, 0.85, 0.45], 6, 7);
-              P.fovKick = Math.max(P.fovKick, 2);
-              P.kick = Math.min(1, P.kick + KICK_ADD);
-              sound.hit(true);
-            }
+            sound.miss();
+            impact(pos3, node, RED, true, b.i);
+            (status.misses = status.misses || []).push({ res: nums[b.i], lane: b.lane,
+              speed: +P.speed.toFixed(1), x: +(P.x / SC).toFixed(2) });
           }
         }
         if (!b.judged && P.s > b.s + A(1.0)) {
-          // flew past without touching it
-          b.judged = true; P.missed++; P.combo = 0; ghostDirty = true;
-          sound.miss();
-          pop(pos3, 'missed', 'rgba(219,230,255,0.6)');
-          beep(160, 0.12, 'triangle', 0.02);
-          (status.misses = status.misses || []).push({ res: nums[b.i], minD: +(b.minD / SC).toFixed(2), speed: +P.speed.toFixed(1), gap: b.gap, radial: b.radial, hw: b.hwv, x: +(P.x / SC).toFixed(2), y: +(P.y / SC).toFixed(2) });
+          b.judged = true; P.fixed++; P.combo++; P.bestCombo = Math.max(P.bestCombo, P.combo); ghostDirty = true;
+          const mult = 1 + Math.floor(P.combo / 5), pts = FLIP_SCORE * mult;
+          P.score += pts;
+          pop(pos3, `clean +${pts}${mult > 1 ? ' x' + mult : ''}`, 'rgb(127,212,193)');
+          sound.hit(P.combo % 5 === 0); P.helixNote++;
+          const mates = blocks.filter((o) => o.type === 'H' && o.seg === b.seg);
+          if (mates.every((o) => o.judged && !o.collided)) {
+            P.helices++; P.score += HELIX_BONUS;
+            pop(pos3, `${b.trench ? 'sheet' : 'helix'} cleared +${HELIX_BONUS}`, 'rgb(255,179,71)');
+          }
         }
         if (b.anim && b.f < 1) {
           // One uniform rate through grab and swing. Rushing the grab 3.5× was tried, to cut a measured
@@ -3324,8 +3335,7 @@ const FIT_SLEW = 320, CAM_CLEAR = 0.9; // deg/s the lens may swing round the cra
         let best = -1e9, bestX = 0;
         for (let k = -60; k <= 60; k++) {
           const x = half * k / 60, p = V.add(nb.p, V.scale(nb.r, A(x)));
-          const clearance = surfaceDist(p);
-          if (clearance > best) { best = clearance; bestX = x; }
+          if (clear > best) { best = clear; bestX = x; }
         }
         out.sheet.push({ res: nums[b.i], trench: +tr.toFixed(2), clear: +best.toFixed(2), atX: +bestX.toFixed(2) });
       }
