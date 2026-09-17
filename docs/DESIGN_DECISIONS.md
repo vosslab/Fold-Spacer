@@ -24,6 +24,48 @@ authoritative code or contract document, rather than a person.
 
 ## Software design
 
+### Three lanes live inside the WebGL protein renderer
+
+**Decision.** Preserve the existing WebGL ribbon, side-chain, cofactor, camera, and lighting system.
+Place three stable runner tracks in each backbone-local cross-section and project their guides
+through the same 3D camera.
+
+**Why.** The molecular structure is the game's identity. Changing the control model provides the
+stability of a lane runner without replacing the protein with a generic road scene.
+
+**Consequence.** Future runner work changes navigation and encounter rules while retaining the
+protein renderer and world-space molecular geometry.
+
+**Owner.** [../game.js](../game.js) and [../RENDERING.md](../RENDERING.md)
+
+### Side chains are the runner obstacles
+
+**Decision.** Use selected residues' ball-and-stick side chains as collision obstacles. Aim their
+displaced pose through a reachable left, center, or right track; reward a clean pass and penalize
+atom-surface contact.
+
+**Why.** The obstacles remain visually and scientifically tied to each protein instead of becoming
+generic game props.
+
+**Consequence.** Every side-chain encounter resolves exactly once as cleared or collided. Residue
+identity, colour, bonds, and heavy-atom geometry remain visible.
+
+**Owner.** [../game.js](../game.js)
+
+### Rust Wasm owns deterministic lane calculations
+
+**Decision.** Compile lane targets, interpolation, and collision primitives from Rust to browser
+WebAssembly and expose them through one strict TypeScript adapter.
+
+**Why.** This creates a small, testable migration boundary without rewriting the mature renderer
+and protein pipeline all at once.
+
+**Consequence.** New browser code uses the typed adapter instead of calling Wasm exports directly or
+duplicating the numeric rules in JavaScript.
+
+**Owner.** [../src/main.ts](../src/main.ts), [../src/wasm_math.ts](../src/wasm_math.ts), and
+[../crates/fold_spacer_math/src/lib.rs](../crates/fold_spacer_math/src/lib.rs)
+
 ### Script placement follows workflow ownership
 
 **Decision.** Classify commands by audience, purpose, dependencies, and input/output boundary.

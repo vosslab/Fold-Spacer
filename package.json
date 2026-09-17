@@ -1,6 +1,6 @@
 {
-	"name": "__REPO_NAME__",
-	"version": "__REPO_VERSION__",
+	"name": "fold-spacer",
+	"version": "26.9.0",
 	"type": "module",
 	"private": true,
 	"scripts": {
@@ -27,7 +27,7 @@
 		"@playwright/test": ">=1.61.1"
 	},
 	"allowScripts": {
-		"esbuild@0.28.1": true,
+		"esbuild@0.28.2": true,
 		"fsevents@2.3.2": true,
 		"fsevents@2.3.3": true
 	}

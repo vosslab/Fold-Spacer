@@ -1,113 +1,68 @@
 # Fold Spacer
 
-A browser tunnel-runner along a real protein backbone. Fly a glider from the N- to the
-C-terminus of ten structures from the Protein Data Bank, repairing the fold as you go.
+Fold Spacer is a three-lane WebGL runner through real protein structures. The camera follows the
+protein backbone from the N-terminus to the C-terminus; &alpha;-helices, &beta;-sheets, loops, cofactors, and
+heavy-atom side chains remain the game world.
 
-**▶ Play: https://martin-steinegger.github.io/Fold-Spacer/**
+The side chains are the obstacles. Press left or right to move among three stable tracks and avoid
+their ball-and-stick geometry. A clean pass builds score and combo; a collision knocks the side
+chain away, breaks the combo, and costs speed.
 
-No install, no server, no build step to try it — it is one self-contained HTML file that
-runs on a phone or a desktop browser.
+## Play
 
-Choose **Begin flight** to start. **How to fly & the science** holds the controls, molecular
-colour key, and credits; the same help is available from the ⋯ menu during a run and pauses
-the flight while you read. The page uses system fonts and needs no external font downloads.
+Run the local server:
 
-## The game
+```sh
+./run_web_server.sh
+```
 
-Inside an **α-helix** you fly down the axis of the coil. Some side chains start out
-pointing inward, which a real helix never does; they pulse white until you fly into one
-and knock it outward into its Clustal colour. Dead centre scores double.
+The script installs the TypeScript dependencies when needed, builds the Rust/WebAssembly lane
+engine, assembles the WebGL game into `dist/`, and serves that exact production artifact.
 
-Over a **β-sheet** you drop into a trench run: the sheet becomes the floor, you weave
-left and right, and every side chain there is yours to collect.
+### Controls
 
-**Cofactors** — the heme, NADH or metal site the fold is actually built around — glow
-from inside the protein. They sit 4–5 Å off the flight path, so you cannot fly through
-one; instead a ring of pips marks a gate out at the corridor edge on their side, and
-claiming one means hugging that wall as you pass. Five of the ten folds carry one.
-
-A **ghost** of your best run on each fold flies alongside you.
-
-Side chains are the real heavy atoms from the PDB entry, drawn as ball-and-stick.
-Secondary structure is computed from Cα geometry, not read from the file.
-
-## Controls
-
-|  | keyboard | phone |
+| Action | Keyboard | Touch |
 |---|---|---|
-| steer | arrow keys or WASD; combine directions for diagonals | drag from wherever your finger lands |
-| boost | `Shift` or `Space` | boost button, bottom right (or a second finger) |
-| brake | `Ctrl` — turns harder while slowing | brake button, bottom left |
-| barrel roll | double-tap `←` or `→` | a hard sideways flick |
-| sound | `M` | sound, in the ⋯ menu |
-| autopilot | `P` | ⋯ menu |
-| next fold / restart | `N` / `R` | tap the finish card / ⋯ menu |
-| colour scheme | `C` | ⋯ menu |
+| Switch lane | Left/Right or A/D | Swipe left/right |
+| Boost | Shift or Space | Boost button |
+| Brake | Ctrl | Brake button |
+| Sound | M | Menu |
+| Restart / next fold | R / N | Menu |
 
-Ride the edge of the corridor and the **slipstream** builds speed. A dead-centre hit
-surges you forward. A barrel roll shrugs off a wall while you are inverted.
+Drop a `.pdb` or `.cif` file onto the game to run through another protein structure.
 
-**Music follows your flow.** A quiet, original 78-BPM score adds bass, melody and high
-accents as you collect cleanly and ride the slipstream. A missed streak gently takes
-layers away. Heme, nucleotide and metal cofactors have distinct musical invitations;
-claiming one resolves the phrase and sends a soft colour ripple through nearby ribbon.
-Everything is synthesised locally—no audio downloads. `M` or Sound controls music and
-effects together; leaving the window or opening help silences both.
+## Architecture
 
-**Drop a `.pdb` or `.cif` file anywhere on the page** to fly your own structure.
+- `game.js`, `gl.js`, `cartoon.js`, and `rail.js` preserve the mature WebGL protein renderer,
+  molecular geometry, camera, and flight path.
+- `src/main.ts` is the typed browser boundary for the three-lane controller.
+- `crates/fold_spacer_math/` contains deterministic Rust lane interpolation and collision math,
+  compiled to `fold_spacer_math.wasm`.
+- `tools/bundle_template.html` owns the responsive interface and scientific explanation.
+- `tools/bundle.py` assembles the renderer sources into the production page.
+- `docs/index.html` is generated for GitHub Pages; `dist/index.html` is the locally served build.
 
-## Build
+## Build and verify
 
 ```sh
-python3 tools/bundle.py     # -> docs/index.html, the page that ships
-node tools/make_folds.js > folds.js   # rebuild the baked campaign from data/
+./build_github_pages.sh
+cargo test --manifest-path crates/fold_spacer_math/Cargo.toml
+node --import tsx devel/check_wasm_parity.ts
+./run_playwright_tests.sh --build
 ```
 
-`docs/index.html` is the published site. The repo root's `index.html` is the **dev**
-page — it loads the separate `.js` files and has no intro card, so it is not what a
-visitor should get.
+The Playwright smoke suite checks the WebGL view, Rust/Wasm activation, keyboard and touch lane
+changes, and the rule that every side-chain encounter ends as either a clean avoidance or a
+collision.
 
-The downloadable standalone is `dist/FoldSpacer.html`; `dist/foldspacer.html` is the
-fragment build for embedding. The welcome screen also explains how to drop in your own structure.
+## Scientific model
 
-### Checks
+Side chains retain their residue identity, Clustal X colour, and PDB-derived heavy-atom geometry.
+Selected side chains are deliberately displaced into one of the three tracks so they can function
+as readable obstacles. Secondary structure is computed from C&alpha; geometry. This is an educational
+game interpretation, not a molecular-dynamics simulation.
 
-```sh
-python3 tools/acceptance.py            # autopilot finishes every fold
-python3 tools/acceptance.py --oracle   # a perfect player takes every fold at rank S
-python3 tools/fairness.py              # every side chain reachable at the speed you fly
-node tools/phone_test.js               # real synthesised touch, phone viewport
-node tools/nogl_test.js                # a browser without WebGL says why
-bash tools/chain_eval.sh               # the whole campaign in one run
-node tools/visual_test.js /tmp/flyer-review  # UI, renderer fallback, screenshots
-FLYER_AUDIO=1 node tools/visual_test.js /tmp/flyer-audio  # audio lifecycle, cofactor captures, WAV preview
-```
+Structures come from the RCSB Protein Data Bank and are credited in the game. Secondary-structure
+assignment follows P-SEA; residue colours follow Clustal X.
 
-These need a headless Chromium (`npx playwright install chromium-headless-shell`).
-
-## Files
-
-| file | role |
-|---|---|
-| `parse.js` | PDB / mmCIF Cα parser, longest chain, title, authors |
-| `ss.js` | P-SEA secondary structure from Cα geometry, and helix weight |
-| `rail.js` | the flight path: de-coiled, offset, subdivided, with frames and `nodeAt(s)` |
-| `cartoon.js` | cartoon ribbon mesh from Cα only |
-| `gl.js` | small WebGL renderer |
-| `folds.js` | the ten campaign structures, baked to integers (generated) |
-| `game.js` | everything else: flight, collection, camera, HUD, scoring |
-| `music.js` | generative score, harmonised cues, shared audio lifecycle and bounded voice pool |
-| `tools/` | build, and the checks above |
-| `PLAYTEST.md` | the engineering log — every measurement, and what was ruled out |
-| `RENDERING.md` | handover for anyone improving the visuals: contracts, dead ends, where the wins are |
-
-`PLAYTEST.md` is the interesting one. It records what was tried and rejected as well as
-what shipped, with the numbers behind each decision.
-
-## Credits
-
-Structures from the **RCSB Protein Data Bank**; each fold credits its depositors and
-publication on its finish card. Secondary structure by **P-SEA** (Labesse *et al.*,
-1997). Side-chain colours after **Clustal X** (Thompson *et al.*, 1997).
-
-MIT licensed — see `LICENSE`.
+MIT licensed.

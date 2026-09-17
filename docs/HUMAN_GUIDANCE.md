@@ -10,6 +10,12 @@ origin belongs there too. Rules: [REPO_STYLE.md](REPO_STYLE.md).
 
 ## Decision priority
 
+- Keep Fold Spacer as a WebGL 3D protein game while changing its control model to a stable,
+  Subway Surfers-style three-lane runner.
+- Keep the protein structure central to the experience; use the actual side chains as the objects
+  the player avoids.
+- Use TypeScript for new browser boundaries and Rust/WebAssembly for deterministic calculations.
+
 ## Review expectations
 
 - Prefer fewer, stronger permanent tests. Each test should protect behavior worth preserving

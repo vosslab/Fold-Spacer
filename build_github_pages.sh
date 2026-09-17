@@ -10,13 +10,10 @@
 #   - Type-checks via 'tsc --noEmit -p tsconfig.json'.
 #   - Resolves the entry: src/main.ts preferred, src/init.ts legacy fallback.
 #     Aborts with an actionable error if neither exists.
-#   - Verifies src/index.html and src/style.css exist before copying;
-#     aborts with an actionable error if missing.
-#   - Verifies src/index.html references dist/main.js with a module script
-#     tag (warns if missing -- the page will load but main.js is dead).
+#   - Verifies the authored WebGL shell in tools/bundle_template.html.
 #   - Bundles the entry into dist/main.js with esbuild (ESM, es2020,
 #     browser, minified, with sourcemap).
-#   - Copies src/index.html and src/style.css into dist/.
+#   - Assembles the WebGL renderer into the authored shell.
 #   - Writes dist/.nojekyll so GitHub Pages serves files starting with _.
 #   - Asserts dist/index.html and dist/main.js exist before exiting.
 #
@@ -36,26 +33,7 @@ else
 	exit 1
 fi
 
-# Verify required static assets before any destructive step.
-for required in src/index.html src/style.css; do
-	if [ ! -f "$required" ]; then
-		echo "ERROR: required source file missing: $required" >&2
-		case "$required" in
-			src/index.html)
-				echo "  Create src/index.html with a <script type=\"module\" src=\"main.js\"></script> tag." >&2 ;;
-			src/style.css)
-				echo "  Create src/style.css (empty file is fine)." >&2 ;;
-		esac
-		exit 1
-	fi
-done
-
-# Soft-warn if index.html does not reference main.js as an ES module.
-if ! grep -Eq '<script[^>]+type="module"[^>]+src="(\./)?main\.js"' src/index.html; then
-	echo "WARNING: src/index.html does not appear to load main.js as an ES module." >&2
-	echo "  Expected tag: <script type=\"module\" src=\"main.js\"></script>" >&2
-	echo "  Build will proceed; the page may render but main.js will not run." >&2
-fi
+test -f tools/bundle_template.html
 
 rm -rf dist
 mkdir -p dist
@@ -71,11 +49,26 @@ npx esbuild "$ENTRY" \
 	--sourcemap \
 	--outfile=dist/main.js
 
-cp src/index.html dist/index.html
-cp src/style.css dist/style.css
+# Build the host-neutral Rust calculation core for the browser target.
+cargo build \
+	--manifest-path crates/fold_spacer_math/Cargo.toml \
+	--target wasm32-unknown-unknown \
+	--release \
+	--target-dir target
+cp target/wasm32-unknown-unknown/release/fold_spacer_math.wasm dist/fold_spacer_math.wasm
+
+# Assemble the established WebGL protein renderer and polished game shell.
+source source_me.sh
+python3 tools/bundle.py
+cp dist/main.js docs/main.js
+cp dist/fold_spacer_math.wasm docs/fold_spacer_math.wasm
+touch docs/.nojekyll
 touch dist/.nojekyll
 
 test -f dist/index.html
 test -f dist/main.js
+test -f dist/fold_spacer_math.wasm
+test -f docs/main.js
+test -f docs/fold_spacer_math.wasm
 
 echo "Built dist/ (GitHub Pages-ready)."

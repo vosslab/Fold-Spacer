@@ -81,40 +81,39 @@
   <div id="touchbar">
     <button id="menubtn" aria-label="Menu" aria-expanded="false" aria-controls="menurow">&#8943;</button>
     <div id="menurow" hidden>
-      <button id="helpbtn">How to fly</button><button data-act="autopilot">Autopilot</button><button data-act="sound">Sound</button><button data-act="colours">Colours</button><button data-act="lanes">Touch / free</button><button data-act="restart">Restart</button><button data-act="next">Next fold</button>
+      <button id="helpbtn">How to play</button><button data-act="autopilot">Autopilot</button><button data-act="sound">Sound</button><button data-act="colours">Colours</button><button data-act="restart">Restart</button><button data-act="next">Next fold</button>
     </div>
   </div>
   <button id="brakebtn" aria-label="brake">Brake</button><button id="boostbtn" aria-label="boost">Boost</button>
   <section id="intro" aria-label="Welcome to Fold Spacer">
-    <div class="wordmark">Fold Spacer</div><div class="edition">A molecular flight</div>
+    <div class="wordmark">Fold Spacer</div><div class="edition">A molecular runner</div>
     <div class="card">
-      <p class="eyebrow">From nature. Into flight.</p>
+      <p class="eyebrow">Three lanes through a real fold.</p>
       <h1>A world<br>within.</h1>
-      <p class="description">Fly through a protein.<br>Restore its shape, one side chain at a time.</p>
-      <button id="beginbtn">Begin flight <span aria-hidden="true">&nbsp;↗</span></button>
-      <button id="learnbtn" class="secondary">How to fly &amp; the science</button>
+      <p class="description">Run from N- to C-terminus.<br>Dodge the side chains in your path.</p>
+      <button id="beginbtn">Begin run <span aria-hidden="true">&nbsp;&nearr;</span></button>
+      <button id="learnbtn" class="secondary">How to play &amp; the science</button>
       <p id="ownstructure" class="own-structure">Your own protein?<br>Drop a .pdb or .cif file anywhere.</p>
     </div>
     <div class="intro-foot"><span>10 folds. N to C.</span><span>Inspired by structures from the Protein Data Bank.</span></div>
   </section>
 </div>
 <dialog id="help" aria-labelledby="helptitle">
-  <header><h2 id="helptitle">How to fly</h2><button id="helpclose" aria-label="Close help">×</button></header>
-  <p>Follow the protein from N- to C-terminus. Fly into pulsing side chains to restore them. A dead-centre hit scores double; a sequence of hits builds your combo.</p>
+  <header><h2 id="helptitle">How to play</h2><button id="helpclose" aria-label="Close help">x</button></header>
+  <p>Follow the protein from N- to C-terminus on three stable lanes. The pulsing obstacles are real amino-acid side chains. Dodge them; each clean pass builds your combo.</p>
   <dl>
-    <dt>Steer</dt><dd><span class="desktop">Arrow keys or WASD. Hold two directions to fly diagonally. Tap to nudge; release to centre.</span><span class="phone">Touch and drag anywhere. Release to return to the centre; a quick flick lunges toward a side chain.</span></dd>
+    <dt>Switch lanes</dt><dd><span class="desktop">Press Left/Right or A/D. Each press moves exactly one lane.</span><span class="phone">Swipe left or right anywhere on the protein view.</span></dd>
     <dt>Boost</dt><dd><span class="desktop">Hold Shift or Space.</span><span class="phone">Hold Boost at the bottom right, or use a second finger.</span></dd>
-    <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down and turn harder.</span><span class="phone">Hold Brake at the bottom left to slow down and turn harder.</span></dd>
-    <dt>Barrel roll</dt><dd><span class="desktop">Double-tap the left or right arrow.</span><span class="phone">Make a hard sideways flick.</span> Walls only graze you while you are over.</dd>
+    <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down.</span><span class="phone">Hold Brake at the bottom left.</span></dd>
   </dl>
-  <p>Ride the edge of the corridor to build slipstream speed. Cofactors sit out by the wall: fly through the ring of pips beside one to claim it. A ghost of your best run flies alongside you.</p>
+  <p>Cofactors remain molecular landmarks beside the course. A ghost of your best run flies alongside you.</p>
   <p>The music grows with clean hits and slipstream: a quiet chord becomes a bass pulse and melody. Each cofactor has a musical invitation; claiming it sends a soft colour ripple through nearby ribbon. Music and effects share the Sound toggle (M), and pause when you leave the game.</p>
-  <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · P autopilot · C colours · L touch mode · R restart · N next fold.</span></p>
+  <p>Use the ... menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound * P autopilot * C colours * R restart * N next fold.</span></p>
   <details><summary>The molecule &amp; its colours</summary>
-    <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>α-helix — fly inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>β-sheet — weave over the surface, collecting side chains</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
+    <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>&alpha;-helix - run inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>&beta;-sheet - run over the sheet surface</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
     <p>Side chains use Clustal X colours. Their ball-and-stick shapes come from real heavy-atom coordinates. Drop your own .pdb or .cif file onto the game to fly its structure.</p>
     <div class="clustal"><span><i style="background:#80A0F0"></i>AILMFWV</span><span><i style="background:#F01505"></i>KR</span><span><i style="background:#C048C0"></i>DE</span><span><i style="background:#15C015"></i>NQST</span><span><i style="background:#F08080"></i>C</span><span><i style="background:#F09048"></i>G</span><span><i style="background:#C0C000"></i>P</span><span><i style="background:#15A4A4"></i>HY</span></div>
-    <p>This is a playful interpretation of a folded protein. Inward side chains are deliberately displaced for you to repair. The tutorial bundle is synthetic and uses side-chain templates from real structures.</p>
+    <p>This is a playful interpretation of a folded protein. Selected side chains are moved into the three-lane course as obstacles, while retaining their residue identity and heavy-atom geometry. The tutorial bundle is synthetic and uses side-chain templates from real structures.</p>
     <p class="credits">Structures from the <a href="https://www.rcsb.org/" target="_blank" rel="noopener noreferrer">RCSB Protein Data Bank</a>, with authors credited on each fold. Secondary structure by P-SEA (Labesse et al., 1997). Side-chain colours after Clustal X (Thompson et al., 1997). Craft and ribbon renderer from Fold Racer.</p>
   </details>
 </dialog>
@@ -166,3 +165,4 @@
   });
 })();
 </script>
+<script type="module" src="main.js"></script>

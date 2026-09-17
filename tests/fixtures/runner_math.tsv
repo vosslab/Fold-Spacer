@@ -1,0 +1,7 @@
+# operation inputs expected
+advance_distance 10 24 0.025 10.6
+lane_target -1 3.5 -3.5
+lane_target 1 3.5 3.5
+runner_collision 0 0.1 50 50.5 0.3 1 1
+runner_collision 0 3.5 50 50.5 0.3 1 0
+residue_score 2 40 90

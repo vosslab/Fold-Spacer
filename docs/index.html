@@ -89,40 +89,39 @@
   <div id="touchbar">
     <button id="menubtn" aria-label="Menu" aria-expanded="false" aria-controls="menurow">&#8943;</button>
     <div id="menurow" hidden>
-      <button id="helpbtn">How to fly</button><button data-act="autopilot">Autopilot</button><button data-act="sound">Sound</button><button data-act="colours">Colours</button><button data-act="lanes">Touch / free</button><button data-act="restart">Restart</button><button data-act="next">Next fold</button>
+      <button id="helpbtn">How to play</button><button data-act="autopilot">Autopilot</button><button data-act="sound">Sound</button><button data-act="colours">Colours</button><button data-act="restart">Restart</button><button data-act="next">Next fold</button>
     </div>
   </div>
   <button id="brakebtn" aria-label="brake">Brake</button><button id="boostbtn" aria-label="boost">Boost</button>
   <section id="intro" aria-label="Welcome to Fold Spacer">
-    <div class="wordmark">Fold Spacer</div><div class="edition">A molecular flight</div>
+    <div class="wordmark">Fold Spacer</div><div class="edition">A molecular runner</div>
     <div class="card">
-      <p class="eyebrow">From nature. Into flight.</p>
+      <p class="eyebrow">Three lanes through a real fold.</p>
       <h1>A world<br>within.</h1>
-      <p class="description">Fly through a protein.<br>Restore its shape, one side chain at a time.</p>
-      <button id="beginbtn">Begin flight <span aria-hidden="true">&nbsp;↗</span></button>
-      <button id="learnbtn" class="secondary">How to fly &amp; the science</button>
+      <p class="description">Run from N- to C-terminus.<br>Dodge the side chains in your path.</p>
+      <button id="beginbtn">Begin run <span aria-hidden="true">&nbsp;&nearr;</span></button>
+      <button id="learnbtn" class="secondary">How to play &amp; the science</button>
       <p id="ownstructure" class="own-structure">Your own protein?<br>Drop a .pdb or .cif file anywhere.</p>
     </div>
     <div class="intro-foot"><span>10 folds. N to C.</span><span>Inspired by structures from the Protein Data Bank.</span></div>
   </section>
 </div>
 <dialog id="help" aria-labelledby="helptitle">
-  <header><h2 id="helptitle">How to fly</h2><button id="helpclose" aria-label="Close help">×</button></header>
-  <p>Follow the protein from N- to C-terminus. Fly into pulsing side chains to restore them. A dead-centre hit scores double; a sequence of hits builds your combo.</p>
+  <header><h2 id="helptitle">How to play</h2><button id="helpclose" aria-label="Close help">x</button></header>
+  <p>Follow the protein from N- to C-terminus on three stable lanes. The pulsing obstacles are real amino-acid side chains. Dodge them; each clean pass builds your combo.</p>
   <dl>
-    <dt>Steer</dt><dd><span class="desktop">Arrow keys or WASD. Hold two directions to fly diagonally. Tap to nudge; release to centre.</span><span class="phone">Touch and drag anywhere. Release to return to the centre; a quick flick lunges toward a side chain.</span></dd>
+    <dt>Switch lanes</dt><dd><span class="desktop">Press Left/Right or A/D. Each press moves exactly one lane.</span><span class="phone">Swipe left or right anywhere on the protein view.</span></dd>
     <dt>Boost</dt><dd><span class="desktop">Hold Shift or Space.</span><span class="phone">Hold Boost at the bottom right, or use a second finger.</span></dd>
-    <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down and turn harder.</span><span class="phone">Hold Brake at the bottom left to slow down and turn harder.</span></dd>
-    <dt>Barrel roll</dt><dd><span class="desktop">Double-tap the left or right arrow.</span><span class="phone">Make a hard sideways flick.</span> Walls only graze you while you are over.</dd>
+    <dt>Brake</dt><dd><span class="desktop">Hold Ctrl to slow down.</span><span class="phone">Hold Brake at the bottom left.</span></dd>
   </dl>
-  <p>Ride the edge of the corridor to build slipstream speed. Cofactors sit out by the wall: fly through the ring of pips beside one to claim it. A ghost of your best run flies alongside you.</p>
+  <p>Cofactors remain molecular landmarks beside the course. A ghost of your best run flies alongside you.</p>
   <p>The music grows with clean hits and slipstream: a quiet chord becomes a bass pulse and melody. Each cofactor has a musical invitation; claiming it sends a soft colour ripple through nearby ribbon. Music and effects share the Sound toggle (M), and pause when you leave the game.</p>
-  <p>Use the ⋯ menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound · P autopilot · C colours · L touch mode · R restart · N next fold.</span></p>
+  <p>Use the ... menu for sound, autopilot, colours, or another fold. <span class="desktop">Shortcuts: M sound * P autopilot * C colours * R restart * N next fold.</span></p>
   <details><summary>The molecule &amp; its colours</summary>
-    <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>α-helix — fly inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>β-sheet — weave over the surface, collecting side chains</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
+    <div class="legend"><i class="sw" style="background:var(--helix)"></i><span>&alpha;-helix - run inside the coil</span><i class="sw" style="background:var(--strand)"></i><span>&beta;-sheet - run over the sheet surface</span><i class="sw" style="background:#8f9cb3"></i><span>Loops connect the folded elements</span></div>
     <p>Side chains use Clustal X colours. Their ball-and-stick shapes come from real heavy-atom coordinates. Drop your own .pdb or .cif file onto the game to fly its structure.</p>
     <div class="clustal"><span><i style="background:#80A0F0"></i>AILMFWV</span><span><i style="background:#F01505"></i>KR</span><span><i style="background:#C048C0"></i>DE</span><span><i style="background:#15C015"></i>NQST</span><span><i style="background:#F08080"></i>C</span><span><i style="background:#F09048"></i>G</span><span><i style="background:#C0C000"></i>P</span><span><i style="background:#15A4A4"></i>HY</span></div>
-    <p>This is a playful interpretation of a folded protein. Inward side chains are deliberately displaced for you to repair. The tutorial bundle is synthetic and uses side-chain templates from real structures.</p>
+    <p>This is a playful interpretation of a folded protein. Selected side chains are moved into the three-lane course as obstacles, while retaining their residue identity and heavy-atom geometry. The tutorial bundle is synthetic and uses side-chain templates from real structures.</p>
     <p class="credits">Structures from the <a href="https://www.rcsb.org/" target="_blank" rel="noopener noreferrer">RCSB Protein Data Bank</a>, with authors credited on each fold. Secondary structure by P-SEA (Labesse et al., 1997). Side-chain colours after Clustal X (Thompson et al., 1997). Craft and ribbon renderer from Fold Racer.</p>
   </details>
 </dialog>
@@ -1493,6 +1492,9 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   else root.createFlightAudio = createFlightAudio;
 })(typeof window !== 'undefined' ? window : globalThis);
 
+Warning: truncated output (original token count: 52284)
+Total output lines: 3337
+
 // Fold Spacer — game loop: blocks, player physics, camera, assist/autopilot, scoring, effects, HUD.
 (function () {
   'use strict';
@@ -1528,8 +1530,8 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const BASE_SPEED = 15, RAMP_SPEED = 6, COMBO_SPEED = 0.3, BOOST_ADD = 12, BRAKE_SPEED = 8;
   const LAT_ACC = 44, LAT_DAMP = 3.2; // lateral agility: terminal lateral speed = LAT_ACC / LAT_DAMP ≈ 13.75 Å/s
   const MAX_CRUISE = BASE_SPEED + RAMP_SPEED + COMBO_SPEED * 12;
-  const FLIP_SCORE = 100, PERFECT_SCORE = 200, HELIX_BONUS = 500, ASSIST_GAIN = 0.3;
-  // inward helix side chains are collected by touching them: distance from the stem (Å)
+  const FLIP_SCORE = 100, HELIX_BONUS = 500, ASSIST_GAIN = 0.3;
+  // Side chains are physical hazards. Their real atom surfaces and bonds define a collision.
   const COLLECT_R = 0.35, PERFECT_R = 0.3, CRAFT_R = 0.24;
   const TRENCH_CATCH = 0.40; // a sheet target is caught from further out: the road is wide and the craft small // perfect: the pass goes through the middle of the side chain; craft radius for touching atoms
   // Inward side chains point at the coil's centre and reach as far in as they can while still leaving the
@@ -1584,7 +1586,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   let MARATHON = window.MARATHON !== false; // a run carries on into the next fold with score and combo
   let paused = !HEADLESS && !!document.getElementById('intro'); // the run starts when the player taps or clicks the intro
   let carry = null; // { score, combo, folds }
-  const P = { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false, base: 0, runFolds: 1,
+  const P = { s: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false, base: 0, runFolds: 1,
     score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: 'C', rank: '', slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 };
   const cam = { pos: [0, 0, 0], fwd: [0, 0, 1], up: [0, 1, 0], fov: 76, off: [0, A(0.85)] };
   const keys = {};
@@ -1726,7 +1728,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     }
     buildRibbonGrid(); buildRibFrames(); // surfaceDist is a weak diagnostic; ribbonPenetration is the reliable one
     computePar();
-    buildBlocks(); pruneUnfair(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
+    buildBlocks(); pruneUnfair(); arrangeLaneObstacles(); sphereLOD = blocks.length > 500 ? ICO_LOW : ICO; buildChunks();
     buildCofactors();
     buildMinimap();
     {
@@ -1771,12 +1773,13 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     P.keyActive = false;
     P.camPrevPos = null; P.camRot = undefined; P.camSc = undefined; P.camBk = undefined;
     P.duck = undefined; P.duckDir = null; P.camBackS = undefined; P.deckLift = undefined;
-    Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
+    Object.assign(P, { s: 0, x: 0, y: 0, vx: 0, vy: 0, lane: 0, speed: 0, fixed: 0, missed: 0, perfect: 0, helices: 0, cofs: 0, kick: 0, wasBoost: false, groove: 0, grooveBest: 0, rolls: 0, rollT: 0, rollDir: 0, rollCool: 0, t: 0, done: false,
       score: 0, combo: 0, bestCombo: 0, helixNote: 0, shake: 0, boostGlow: 0, lastElem: ss[0], rank: '', base: 0, runFolds: 1, slow: 0, flashT: 0, flashCol: [1, 1, 1], fovKick: 0, comboPop: 0 });
     glows = [];
     if (renderer && ribbonGeom) renderer.updateColours(ribbonMesh, ribbonGeom.col, 0);
     if (carry) { P.score = carry.score; P.base = carry.score; P.combo = carry.combo; P.runFolds = carry.folds; carry = null; }
-    for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
+    if (window.foldSpacerLaneEngine) window.foldSpacerLaneEngine.setLane(0);
+    for (const b of blocks) { if (b.type === 'H') { b.f = 0; b.anim = false; b.judged = false; b.collided = false; b.minD = Infinity; b.side = 0; b.perfect = false; b.pendingPerfect = false; } b.passed = false; }
     for (const c of cofs) { c.locked = false; c.judged = false; c.announced = false; c.minD = 1e9; }
     ghostRec = []; ghostNext = 0;
     animating = true;
@@ -1790,7 +1793,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     dust = []; for (let i = 0; i < 140; i++) dust.push(spawnDust(Math.random() * A(45)));
     P.preview = PREVIEW_T;
     titleCardT = 4.5;
-    flash = { text: laneMode ? 'Drag to steer · fly into pulsing side chains' : 'Arrow keys to steer · fly into pulsing side chains', t: 6 };
+    flash = { text: 'Three lanes | dodge the pulsing side chains', t: 6 };
   }
 
   // ---------------------------------------------------------------- fold minimap
@@ -2084,6 +2087,43 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
       }
       if (bestX === null) { blocks.splice(k, 1); totalHelix--; }
       else b.aim = { x: bestX, y: bestY };
+    }
+  }
+
+  // The runner keeps the protein's own moving cross-section, but offers only three stable tracks in it.
+  // Each obstacle remains the residue's real ball-and-stick side chain; only its deliberately displaced
+  // pose is aimed through one of the three tracks. If its true length cannot reach any track, omit it.
+  function laneSpacingAt(node) {
+    const circular = Math.max(A(0.45), node.R - A(WALL_MARGIN + CRAFT_R + 0.08));
+    const trench = A(Math.max(0.45, Math.min(1.15,
+      Math.min(node.slotL || TRENCH_HALF, node.slotR || TRENCH_HALF) - 0.35)));
+    const mix = clamp(((node.trench || 0) - 0.3) / 0.4, 0, 1);
+    return Math.min(A(1.05), circular * (1 - mix) + trench * mix);
+  }
+
+  function arrangeLaneObstacles() {
+    for (let k = blocks.length - 1; k >= 0; k--) {
+      const b = blocks[k];
+      if (b.type !== 'H') continue;
+      const node = rail.nodeAt(b.s), spacing = laneSpacingAt(node);
+      const first = ((b.i * 7 + Math.abs(b.seg || 0)) % 3) - 1;
+      const order = [first, first === 0 ? -1 : 0, first === 1 ? -1 : 1];
+      let placed = false;
+      for (const lane of order) {
+        const target = V.add(node.p, V.scale(node.r, lane * spacing));
+        const offset = V.perp(V.sub(target, b.ca), b.tan);
+        const need = V.len(offset) / SC;
+        const cap = 1.05 * b.Lvis;
+        if (V.len(offset) < 1e-6 || need + 0.25 > cap) continue;
+        b.lane = lane;
+        b.inw = V.norm(offset);
+        b.inLen = Math.min(cap, Math.max(0.8, need + 0.35));
+        b.aim = { x: lane * spacing / SC, y: 0 };
+        b.theta = undefined;
+        placed = true;
+        break;
+      }
+      if (!placed) { blocks.splice(k, 1); totalHelix--; }
     }
   }
 
@@ -2772,6 +2812,16 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (e.key === 'p' || e.key === 'P') { if (!e.repeat) autopilot = !autopilot; e.preventDefault(); return; }
     const direction = STEER_CODES[e.code] || ARROWS[e.key];
     if (direction) {
+      const lanes = window.foldSpacerLaneEngine;
+      if (lanes) {
+        if (!e.repeat && (direction === 'left' || direction === 'right')) {
+          P.lane = lanes.shift(direction === 'left' ? -1 : 1);
+          autopilot = false;
+          beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
+        }
+        e.preventDefault();
+        return;
+      }
       // Track physical keys separately: releasing D must not cancel a still-held Right arrow.
       const token = e.code || e.key;
       if (!e.repeat && !heldKeys.has(token) && !keys[direction]) {
@@ -2785,7 +2835,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     if (e.key === 'Control') { heldKeys.set(e.code || e.key, 'brake'); keys.brake = true; e.preventDefault(); }
     if (e.repeat) return;
     if (e.key === 'r' || e.key === 'R') reset();
-    if (e.key === 'l' || e.key === 'L') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, flick to lunge · keyboard unchanged' : 'free flight', t: 2.5 }; }
     if (e.key === 'c' || e.key === 'C') { scheme = scheme === 'clustal' ? 'class' : 'clustal'; ghostDirty = true; flash = { text: scheme === 'clustal' ? 'side chains coloured by Clustal X residue type' : 'side chains coloured by chemical class', t: 2 }; }
     if (e.key === 'm' || e.key === 'M') { setMuted(!muted); if (!muted) ensureSound(); }
     if (e.key === 'n' || e.key === 'N') nextFold(P.done);
@@ -2801,7 +2850,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   const touch = { id: null, x0: 0, y0: 0, dx: 0, dy: 0, boost: false, boostId: null, t0: 0, hold: false, swiped: false };
   // lunge mode (Temple Run in a tube): the craft rests in the centre; a swipe snaps it toward that side
   // of the coil, holds a moment, and it springs back. Swipe toward a side chain as you reach it.
-  let laneMode = false;
+  let laneMode = true;
   const LUNGE = { hold: 0.3, wOut: 26, wFollow: 20, wBack: 12, px: 70 };
   // Trench driving, after Fold Racer: a bend throws you at the outside wall with -v²k, your steering is a
   // limited force against it, grip damps what is left, and the wall costs speed rather than bouncing you.
@@ -2908,7 +2957,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     beep(440, 0.05, 'square', 0.015);
   }
   const TOUCH = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
-  laneMode = TOUCH;
+  laneMode = true;
   const touchTarget = document.getElementById('stage') || glCanvas;
   const uiTouch = (e) => e.target && e.target.closest && e.target.closest('#intro, #help, #touchbar, #brakebtn, #boostbtn'); // let taps on UI become clicks
   // One handler set for both pointer events (preferred) and touch events (fallback).
@@ -2928,14 +2977,20 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
   function fingerUp(id) {
     if (P.preview > 0) return;   // the preview swallows the update, so a lunge started here would stick
     if (id === touch.id) {
+      const lanes = window.foldSpacerLaneEngine;
+      if (lanes && Math.abs(touch.dx) >= 24 && Math.abs(touch.dx) > Math.abs(touch.dy) * 1.2) {
+        P.lane = lanes.shift(touch.dx < 0 ? -1 : 1);
+        autopilot = false;
+        beep(440 + (P.lane + 1) * 70, 0.04, 'square', 0.012);
+      }
       // a quick flick is a lunge: it holds at the wall for a moment before springing back
       // A hard, fast, mostly sideways flick is a roll. Phones default to LANE mode, so gating this on free
       // flight — as the first build did — left the roll unreachable for almost every player. In lane mode
       // it layers on top of the lunge instead: an ordinary flick lunges, a much harder one lunges AND
       // rolls. The bar is set well above the ordinary flick so a normal lunge never triggers one.
       const flickMs = performance.now() - touch.t0;
-      if (laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
-      if (rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
+      if (!lanes && laneMode && flickMs < 260 && Math.hypot(touch.dx, touch.dy) >= 26) laneSwipe(Math.atan2(-touch.dy, touch.dx));
+      if (!lanes && rollFromFlick(flickMs, touch.dx, touch.dy, laneMode)) startRoll(touch.dx > 0 ? 1 : -1);
       touch.id = null; touch.dx = 0; touch.dy = 0; touch.hold = false;
     }
     if (id === touch.boostId) { touch.boostId = null; touch.boost = false; }
@@ -2987,7 +3042,6 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
     else if (name === 'brakeOn') keys.brake = true;
     else if (name === 'brakeOff') keys.brake = false;
     else if (name === 'sound') { setMuted(!muted); if (!muted) ensureSound(); }
-    else if (name === 'lanes') { laneMode = !laneMode; flash = { text: laneMode ? 'touch: drag to steer, release to snap back, flick to lunge' : 'free flight: drag to steer', t: 2.5 }; }
   };
 
   glCanvas.addEventListener('click', () => { skipPreview(); if (P.done && doneAt && performance.now() - doneAt > 800) nextFold(true); });
@@ -3101,143 +3155,7 @@ window.SC_TEMPLATES = {"H":{"I":[0.29,-0.97,-1.13,-0.79,-2.01,-1,1.63,-1.7,-1.01
         const fs = flightStartPose();
         let k = 1 - P.preview / PREVIEW_BLEND; k = k * k * (3 - 2 * k);
         cam.pos = V.lerp(pv.pos, fs.pos, k);
-        cam.fwd = V.norm(V.lerp(pv.fwd, fs.fwd, k));
-        cam.up = V.norm(V.perp(V.lerp(pv.up, fs.up, k), cam.fwd));
-      } else { cam.pos = pv.pos; cam.fwd = pv.fwd; cam.up = V.norm(V.perp(pv.up, cam.fwd)); }
-      cam.fov = 76; cam.fovDraw = 76;
-      if (titleCardT > 0) titleCardT -= dt;
-      if (flash.t > 0) flash.t -= dt;
-      updateGlows(dt);
-      status.preview = +P.preview.toFixed(2);
-      P.camPrevPos = null;                      // the step limiter must not fight the hand-over
-      if (P.preview > 0) return;
-    }
-    status.preview = 0;
-    P.t += P.done ? 0 : dt;
-    P.shake *= Math.exp(-6 * dt);
-    if (P.rollT > 0) P.rollT = Math.max(0, P.rollT - dt);
-    P.kick = Math.max(0, P.kick - dt / KICK_DECAY);
-    // record the ghost: s in 0.1 Å, x and y in 0.01 Å, as plain integers
-    if (ghostRec && !P.done && P.t >= ghostNext) {
-      ghostNext = P.t + 1 / GHOST_HZ;
-      ghostRec.push(Math.round(P.s / SC * 10), Math.round(P.x / SC * 100), Math.round(P.y / SC * 100));
-    }
-    if (P.rollCool > 0) P.rollCool = Math.max(0, P.rollCool - dt);
-    P.flashT = Math.max(0, P.flashT - dt * 3); P.scrape = Math.max(0, (P.scrape || 0) - dt); P.fovKick *= Math.exp(-9 * dt); P.comboPop = Math.max(0, P.comboPop - dt * 3.5);
-    updateGlows(dt);
-    if (flash.t > 0) flash.t -= dt;
-    if (titleCardT > 0) titleCardT -= dt;
-    for (const q of pops) q.age += dt;
-    pops = pops.filter((q) => q.age < 1.1);
-
-    // forward speed: ramps with progress and combo
-    const progress = P.s / rail.length;
-    // brake into sharp turns: how much the rail bends over the next 8 Å
-    const tNow = rail.nodeAt(P.s).t, tAhead = rail.nodeAt(P.s + A(8)).t;
-    const bend = Math.acos(clamp(V.dot(tNow, tAhead), -1, 1)) * 180 / Math.PI;
-    const turnFactor = window.CAM_OLD ? 1 : clamp(1 - (bend - TUNE.bendStart) / TUNE.bendSpan, TUNE.minTurn, 1);   // straight: 1, sharp bend: minTurn
-    P.bendAhead = bend; P.bendDir = V.sub(tAhead, tNow); // for the HUD turn indicator
-    // slipstream: riding the outer corridor builds speed; coming off it, or scraping, drops it
-    {
-      const nEdge = rail.nodeAt(P.s);
-      const limE = Math.max(nEdge.R - A(WALL_MARGIN), A(CRAFT_R + 0.06));
-      const edge = limE > 0 ? Math.hypot(P.x, P.y) / limE : 0;
-      // NOT gated on P.flashT: that is set to 1 by impact() on every side chain you collect, not just on
-      // wall contact, so gating on it wiped the slipstream every time you scored — which is constantly.
-      // A real wall hit zeroes P.groove where it happens, which is the correct and only place for it.
-      const riding = !P.done && !autopilot && P.preview <= 0 && edge > GROOVE_EDGE;
-      if (riding && P.groove > 0.25) teach('groove', 'slipstream · hold the edge of the corridor for speed');
-      P.groove = clamp(P.groove + (riding ? dt / GROOVE_UP : -dt / GROOVE_DOWN), 0, 1);
-      P.grooveBest = Math.max(P.grooveBest, P.groove);
-    }
-    // Side chains are PLACED against MAX_CRUISE: buildBlocks asks whether a player at that speed can cross
-    // from one to the next, and drops the ones that fail. So a speed bonus that goes past it silently
-    // un-places them again — measured, holding full slipstream would have cost 3-9 side chains a fold,
-    // up to 40% on 1BCF, with no warning to the player. The guarantee that everything on screen is
-    // reachable at the speed you are actually flying is the spine of this game and outranks a new toy.
-    // The bonuses therefore carry you TO the ceiling sooner and hold you there through bends, where the
-    // corner brake would otherwise have you crawling; the reward for the risky line is paid in score.
-    // window.NOFUN=1 turns the movement bonuses off, so any comfort metric can be measured with and
-    // without them rather than argued about.
-    const gSp = window.NOFUN ? 0 : GROOVE_SPEED, kSp = window.NOFUN ? 0 : KICK_SPEED;
-    const cruiseBase = BASE_SPEED + RAMP_SPEED * progress + COMBO_SPEED * Math.min(P.combo, 12);
-    const cruiseFlat = Math.min(MAX_CRUISE, cruiseBase * (1 + gSp * P.groove)
-      + (autopilot ? 0 : kSp * P.kick));
-    const cruise = cruiseFlat * turnFactor;
-    const boosting0 = keys.boost || touch.boost; // touch: a second finger boosts
-    if (boosting0 && !P.wasBoost && !P.done && P.preview <= 0) {
-      P.fovKick = Math.max(P.fovKick, BOOST_KICK);
-      beep(160, 0.18, 'sawtooth', 0.03); beep(240, 0.22, 'sawtooth', 0.022, null, 0.06);
-    }
-    P.wasBoost = boosting0;
-    let target = P.done ? 0 : autopilot ? 15 * turnFactor : boosting0 ? cruise + BOOST_ADD * turnFactor : keys.brake ? BRAKE_SPEED : cruise;
-    if (window.ORACLE && !P.done) target *= (P.oracleEase === undefined ? 1 : P.oracleEase);
-    // The view turns exactly as fast as the rail does — measured, the camera's rate sits just under the
-    // path's on every fold. The bend above is averaged over 8 Å, so a short sharp kink slips through it
-    // and whips the screen. Cap the rate the path itself can rotate the view, by speed, on the local turn.
-    if (!P.done && !window.CAM_OLD) {
-      // Read the sharpest local turn, not the average of one. 1QJ8's rail has kinks of 100–142 °/Å at
-      // its hairpins; a 3 Å window averages them away and the craft arrives at full speed into a corner
-      // no camera can follow.
-      const ang = (d) => Math.acos(clamp(V.dot(tNow, rail.nodeAt(P.s + A(d)).t), -1, 1)) * 180 / Math.PI / d;
-      const kDeg = Math.max(ang(1), ang(3));
-      // The floor is a fraction of the UNREDUCED cruise. Taking it off `cruise`, which the corner brake
-      // has already cut to a third, let the two compound: 1TIM crawled to 3.7 Å/s at one kink, which is
-      // not easing off a corner, it is stopping.
-      if (kDeg > 0.02) target = Math.min(target, Math.max(OMEGA_MAX / kDeg, cruiseFlat * TUNE.minTurn));
-    }
-    P.speed += (target - P.speed) * (1 - Math.exp(-2.5 * dt));
-    if (!P.done && P.t > 3 && !autopilot) status.slowMin = Math.min(status.slowMin === undefined ? 99 : status.slowMin, +P.speed.toFixed(1));
-    if (P.done) P.speed *= Math.exp(-4 * dt);
-    P.boostGlow += (((boosting0 && !P.done) ? 1 : 0) - P.boostGlow) * Math.min(1, 4 * dt);
-    P.s = Math.min(rail.length, P.s + A(P.speed) * dt);
-
-    // lateral control
-    const stick = touch.id !== null && !laneMode;
-    const keyboard = keys.left || keys.right || keys.up || keys.down;
-    const hands = keyboard || stick;
-    let springIntegrated = false;
-    if (!keyboard) P.keyReach = 0;
-    if (laneMode && !keyboard && !P.keyActive && !autopilot && !P.done) {
-      springIntegrated = true;
-      // lunge: a critically damped spring toward the swiped side while holding, then back to the centre
-      // how far the finger can send the craft: a disc inside a helix, the full slot width in a trench
-      const nodeR = rail.nodeAt(P.s);
-      const trR = clamp(((nodeR.trench || 0) - 0.3) / 0.4, 0, 1);
-      const ring = Math.min(A(1.25), 0.75 * (nodeR.R - A(WALL_MARGIN)));
-      const ringX = ring + (A(TRENCH_HALF - 0.15) - ring) * trR, ringY = ring * (1 - trR);
-      let tx = 0, ty = 0, w = LUNGE.wBack;
-      if (lunge.active) {
-        lunge.t += dt;
-        if (lunge.t < LUNGE.hold) { tx = Math.cos(lunge.ang) * ringX; ty = Math.sin(lunge.ang) * ringY; w = LUNGE.wOut; }
-        else if (lunge.t > LUNGE.hold + 0.6 && Math.hypot(P.x, P.y) < A(0.05)) lunge.active = false;
-      } else if (touch.id !== null) {
-        // finger following: the craft goes where the finger points, relative to where it landed
-        let fx = touch.dx / LUNGE.px, fy = -touch.dy / LUNGE.px;
-        const m = Math.hypot(fx, fy); if (m > 1) { fx /= m; fy /= m; }
-        tx = fx * ringX; ty = fy * ringY; w = LUNGE.wFollow;
-      }
-      if (window.LAZY) { tx = Math.cos(P.t * 1.5) * A(window.LAZY); ty = Math.sin(P.t * 1.5) * A(window.LAZY); w = LUNGE.wFollow; } // dev: mindless circling, no aiming
-      const nodeT = rail.nodeAt(P.s);
-      const trD = clamp(((nodeT.trench || 0) - 0.3) / 0.4, 0, 1);
-      const gp = trD > 0.5 ? gripAt(nodeT) : { grip: 1, steer: 1, ice: false };
-      const load = trD > 0.5 ? cornerLoad(nodeT) * trD : 0;
-      P.ice = gp.ice && trD > 0.5;
-      const steps = Math.max(1, Math.ceil(dt / 0.008));
-      const h = dt / steps;
-      for (let i = 0; i < steps; i++) {
-        // your steering is a force, not a teleport: in a bend the corner load eats into it
-        let ax = (w * w * (tx - P.x) - 2 * w * P.vx) * gp.steer;
-        ax = clamp(ax, -A(LAT_ACC), A(LAT_ACC)) + load;
-        P.vx += ax * h;
-        P.vy += (w * w * (ty - P.y) - 2 * w * P.vy) * h;
-        P.x += P.vx * h; P.y += P.vy * h;
-      }
-      if (window.TRACE_LUNGE) (status.traj = status.traj || []).push([+P.t.toFixed(2), +(P.x / SC).toFixed(2), +(P.y / SC).toFixed(2), lunge.active ? 1 : 0, +lunge.t.toFixed(2), +(rho / SC).toFixed(2), +(tx / SC).toFixed(2)]);
-    } else if (window.CASUAL && !P.done) {
-      // A deliberately imperfect player, for balance measurement. The oracle says what is POSSIBLE; this
-      // says what an ordinary run looks like — reaction delay, a shaky aim, and a share of side chains
-      // simply not gone for. Nothing else in the harness measures whether the game is too hard.
+        cam.fwd = V.norm(V.lerp(pv.fwd, fs…2284 tokens truncated…easures whether the game is too hard.
       const acc = A(LAT_ACC), nodeC = rail.nodeAt(P.s);
       const lag = +(window.CASUAL_LAG || 0.28), err = +(window.CASUAL_ERR || 0.30), skip = +(window.CASUAL_SKIP || 0.15);
       let tx = 0, ty = 0, have = false;
@@ -4878,6 +4796,7 @@ const FIT_SLEW = 320, CAM_CLEAR = 0.9; // deg/s the lens may swing round the cra
   });
 })();
 </script>
+<script type="module" src="main.js"></script>
 
 </body>
 </html>

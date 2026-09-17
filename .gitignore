@@ -26,6 +26,12 @@ coverage/
 meta.json
 stats.html
 
+# === RUST === [PROPAGATED - LOCAL EDITS OVERWRITTEN]
+/target/
+**/target/
+**/*.rs.bk
+.rust_analyzer/
+
 # -------------------- LOCAL REPOSITORY RULES --------------------
 # ADD YOUR CUSTOM IGNORES BELOW
 # Propagation preserves this section.

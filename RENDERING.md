@@ -347,3 +347,24 @@ checks lifecycle, real oracle-flown heme/NADH/copper moments, and an offline-ren
 24-second WAV (flow builds, a miss, cofactor phrases, finish, mute). It asserts finite,
 unclipped audio, layer progression, voice cleanup and silence after mute. These automated
 checks do not replace listening on headphones and a physical phone.
+
+---
+
+## 7. Three-lane WebGL runner
+
+The 2026-09-16 runner conversion preserves the renderer above. Three stable tracks live in each
+backbone-local cross-section and are projected through the same 3D camera as the ribbon. The
+highlighted path is the current lane.
+
+Side-chain obstacles are not generic models. `arrangeLaneObstacles()` aims a selected residue's
+existing ball-and-stick pose through a reachable left, center, or right track. A residue whose real
+side-chain length cannot reach a track is omitted. Preserve its residue identity, Clustal X color,
+bonds, and heavy-atom geometry.
+
+Lane targets and frame-rate-independent interpolation come from the Rust/WebAssembly core through
+`src/main.ts`. Keep the browser boundary typed and keep lane positions in the rail's local right
+vector; world-axis lanes break as soon as the protein bends.
+
+The permanent browser smoke suite checks the WebGL view, keyboard and touch lane changes,
+Rust/Wasm activation, the blocked-lane obstacle marker, and the invariant that every side-chain
+encounter resolves exactly once as a clean avoidance or collision.
